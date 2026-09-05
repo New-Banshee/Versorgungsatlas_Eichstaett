@@ -9,7 +9,7 @@ UNI_NAME = "Katholische Stiftungshochschule München"                           
 STUDIENGANG = "Angewandte Versorgungsforschung"         # Euer Studiengang
 SEMESTER = "Sommersemester 2026"                        # Das aktuelle Semester
 PROJEKTTITEL = "Quartiersmanagement aus interprofessioneller Perspektive"
-PROJEKTTEILNEHMER = "Christina Papacek-Zimmermann B.Sc.   Jennifer Zimmermann B.Sc."          # Eure Namen für die Bearbeitung
+PROJEKTTEILNEHMER = "Christina Papacek-Zimmermann B.Sc., Jennifer Zimmermann B.Sc."          # Eure Namen für die Bearbeitung
 
 # DATEINAME DER DATA-CSV
 # Falls Ihr die CSV-Datei auf GitHub anders benannt habt (z.B. ohne '_v2'),
@@ -255,7 +255,7 @@ with tab3:
     
     st.markdown(f"""
     <div style="background-color:#F9FAFB; padding:15px; border-radius:8px; border:1px solid #E5E7EB; margin-bottom:25px;">
-        <h4>🏫 Wissenschaftlicher Kontext (Lehrprojekt)</h4>
+        <h4>🏫 Wissenschaftlicher Kontext (Studienprojekt)</h4>
         Dieses interaktive System und die zugrundeliegende Erfassung wurden im Rahmen des 
         <strong>Masterstudiengangs {STUDIENGANG}</strong> ({SEMESTER}) an der <strong>{UNI_NAME}</strong> erarbeitet.<br><br>
         <strong>Projekt-Fokus:</strong><br>
