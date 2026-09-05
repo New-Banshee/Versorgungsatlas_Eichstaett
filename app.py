@@ -42,7 +42,7 @@ st.markdown("""
         border-left: 5px solid #2563EB;
     }
     </style>
-""", unsafe_allowed_html=True)
+""", unsafe_allow_html=True)
 
 # SIDEBAR: Context & Info
 st.sidebar.image("https://img.icons8.com/clouds/150/hospital-room.png", width=100)
@@ -56,7 +56,7 @@ st.sidebar.markdown("""
     🗺️ Fläche: 1.214 km²<br>
     🏡 Gemeinden: 30
 </div>
-""", unsafe_allowed_html=True)
+""", unsafe_allow_html=True)
 
 st.sidebar.subheader("📥 Downloads & Anfragen")
 # CSV Download Button
@@ -80,8 +80,8 @@ _Kontaktieren Sie den Autor direkt am Poster oder per E-Mail._
 """)
 
 # MAIN PAGE
-st.markdown('<div class="main-title">Gesundheits- & Versorgungsatlas</div>', unsafe_allowed_html=True)
-st.markdown('<div class="subtitle">Interaktives Informationssystem zur medizinischen und pflegerischen Infrastruktur im Landkreis Eichstätt</div>', unsafe_allowed_html=True)
+st.markdown('<div class="main-title">Gesundheits- & Versorgungsatlas</div>', unsafe_allow_html=True)
+st.markdown('<div class="subtitle">Interaktives Informationssystem zur medizinischen und pflegerischen Infrastruktur im Landkreis Eichstätt</div>', unsafe_allow_html=True)
 
 # Tabs
 tab1, tab2, tab3 = st.tabs(["📊 Dashboard & Regionalvergleich", "🔍 Gemeinde-Steckbriefe", "📘 Recherchemanual & Methodik"])
@@ -246,4 +246,4 @@ with tab3:
         """)
 
 st.markdown("---")
-st.markdown("<div style='text-align: center; color: gray; font-size: 12px;'>Kommunaler Gesundheits- und Versorgungsatlas Landkreis Eichstätt | Erstellt für ein wissenschaftliches Poster | © 2026 Open Science Project</div>", unsafe_allowed_html=True)
+st.markdown("<div style='text-align: center; color: gray; font-size: 12px;'>Kommunaler Gesundheits- und Versorgungsatlas Landkreis Eichstätt | Erstellt für ein wissenschaftliches Poster | © 2026 Open Science Project</div>", unsafe_allow_html=True)
