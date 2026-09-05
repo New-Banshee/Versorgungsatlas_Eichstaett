@@ -73,7 +73,7 @@ st.sidebar.markdown("**Landkreis Eichstätt (Oberbayern)**")
 # Studentisches Infofeld in der Sidebar
 st.sidebar.markdown(f"""
 <div style="background-color:#F5F3FF; padding:12px; border-radius:5px; border-left:4px solid #7C3AED; margin-bottom:15px; font-size: 13.5px;">
-    <strong>🎓 Studentisches Lehrprojekt:</strong><br>
+    <strong>🎓 Studentisches Projekt:</strong><br>
     Erstellt im Rahmen des Masterstudiengangs <strong>{STUDIENGANG}</strong> ({SEMESTER}) an der <strong>{UNI_NAME}</strong>.<br><br>
     <strong>Projekttitel:</strong><br>
     <em>{PROJEKTTITEL}</em><br><br>
