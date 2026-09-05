@@ -13,13 +13,13 @@ st.set_page_config(
 # Load data helper
 @st.cache_data
 def load_data():
-    return pd.read_csv("versorgungsatlas_eichstaett.csv")
+    return pd.read_csv("versorgungsatlas_eichstaett_v2.csv")
 
 try:
     df = load_data()
 except Exception as e:
     # Fallback to local path if run locally
-    df = pd.read_csv("versorgungsatlas_eichstaett.csv")
+    df = pd.read_csv("versorgungsatlas_eichstaett_v2.csv")
 
 # Custom Styling
 st.markdown("""
@@ -49,8 +49,25 @@ st.sidebar.image("https://img.icons8.com/clouds/150/hospital-room.png", width=10
 st.sidebar.title("Versorgungsatlas")
 st.sidebar.markdown("**Landkreis Eichstätt (Oberbayern)**")
 
+# ==============================================================================
+# HIER KÖNNT IHR EURE NAMEN UND DIE UNI DIREKT IM CODE ANPASSEN!
+# ==============================================================================
+UNI_NAME = "Katholische Stiftungshochschule München"
+PROJEKTTEILNEHMER = "Christina Papacek-Zimmermann B.Sc., Jennifer Zimmermann B.Sc."
+
+st.sidebar.markdown(f"""
+<div style="background-color:#F5F3FF; padding:12px; border-radius:5px; border-left:4px solid #7C3AED; margin-bottom:15px; font-size: 13.5px;">
+    <strong>🎓 Studentisches Lehrprojekt:</strong><br>
+    Erstellt im Rahmen des Masterstudiengangs <strong>Angewandte Versorgungsforschung</strong> an der <strong>{UNI_NAME}</strong>.<br><br>
+    <strong>Projekttitel:</strong><br>
+    <em>Quartiersmanagement aus interprofessioneller Perspektive</em><br><br>
+    <strong>Bearbeitung:</strong><br>
+    {PROJEKTTEILNEHMER}
+</div>
+""", unsafe_allow_html=True)
+
 st.sidebar.markdown("""
-<div style="background-color:#EFF6FF; padding:12px; border-radius:5px; border-left:4px solid #3B82F6; margin-bottom:15px;">
+<div style="background-color:#EFF6FF; padding:12px; border-radius:5px; border-left:4px solid #3B82F6; margin-bottom:15px; font-size: 13.5px;">
     <strong>Strukturdaten Landkreis:</strong><br>
     👥 Einwohner: 135.982 (31.12.2025)<br>
     🗺️ Fläche: 1.214 km²<br>
@@ -64,7 +81,7 @@ csv = df.to_csv(index=False).encode('utf-8')
 st.sidebar.download_button(
     label="📊 Original-Datenbank (CSV) herunterladen",
     data=csv,
-    file_name="versorgungsatlas_eichstaett.csv",
+    file_name="versorgungsatlas_eichstaett_v2.csv",
     mime="text/csv"
 )
 
@@ -142,8 +159,8 @@ with tab1:
     
     # Insight box
     st.info("""
-    ℹ️ **Interpretationshinweis:** Größere Zentren wie die **Stadt Eichstätt** oder **Kösching** weisen aufgrund ihrer zentralörtlichen Funktion, 
-    Krankenhausstandorte und der ansässigen Facharztpraxen naturgemäß die höchsten quantitativen Werte auf. Das Umland wird überregional bzw. gemeindeübergreifend mitversorgt.
+    ℹ️ **Interpretationshinweis:** Größere Zentren wie **Eichstätt (Stadt)** oder **Kösching** weisen aufgrund ihrer zentralörtlichen Funktion, 
+    Krankenhausstandorte und der ansässigen Facharztpraxen naturgemäß die höchsten quantuativen Werte auf. Das Umland wird überregional bzw. gemeindeübergreifend mitversorgt.
     """)
 
 with tab2:
@@ -190,7 +207,7 @@ with tab2:
         avg_einwohner = df["Einwohner"].mean()
         avg_indicator = df[selected_col].mean()
         
-        # Let's show a radar-style comparison or horizontal bars
+        # Let's show comparison
         st.markdown("#### Lokale Abweichung vom Landkreis-Mittelwert")
         
         comparison_data = []
@@ -198,6 +215,7 @@ with tab2:
             g_val = g_data[col]
             avg_val = df[col].mean()
             pct_of_avg = (g_val / avg_val * 100) if avg_val > 0 else 0
+            
             comparison_data.append({
                 "Infrastruktur": label,
                 "Lokaler Wert": g_val,
@@ -217,7 +235,24 @@ with tab2:
             """)
 
 with tab3:
-    st.header("Wissenschaftliches Recherchemanual & Zählregeln")
+    st.header("Wissenschaftlicher Hintergrund & Recherchemanual")
+    
+    st.markdown(f"""
+    <div style="background-color:#F9FAFB; padding:15px; border-radius:8px; border:1px solid #E5E7EB; margin-bottom:25px;">
+        <h4>🏫 Wissenschaftlicher Kontext (Lehrprojekt)</h4>
+        Dieses interaktive System und die zugrundeliegende Erfassung wurden im Rahmen des 
+        <strong>Masterstudiengangs Angewandte Versorgungsforschung</strong> an der <strong>{UNI_NAME}</strong> erarbeitet.<br><br>
+        <strong>Projekt-Fokus:</strong><br>
+        Es handelt sich um eine <strong>deskriptive Erfassung (Erfassungsstufen A und B)</strong> des Stadt- und Landkreises Eichstätt. 
+        Ziel ist es, die bestehenden medizinischen und pflegerischen Versorgungsstrukturen systematisch zu kartieren 
+        und für Akteure der regionalen Gesundheitsförderung nutzbar zu machen.<br><br>
+        <strong>Interprofessioneller Ansatz:</strong><br>
+        Die Erhebung ist in das Projektmodul <strong>"Quartiersmanagement aus interprofessioneller Perspektive"</strong> eingebettet, 
+        das aufzeigt, wie die verschiedenen Sektoren der Gesundheits- und Soziallandschaft (Ärzte, Zahnärzte, Heilmittelerbringer, Pflege- und Beratungsstrukturen) 
+        integriert zusammenwirken können, um eine lückenlose Versorgung zu gewährleisten.<br><br>
+        <em>Hinweis: Der Code kann zur Personalisierung um die Namen der Projektteilnehmer ergänzt werden.</em>
+    </div>
+    """, unsafe_allow_html=True)
     
     st.markdown("""
     Dieses interaktive System basiert auf dem offiziellen **Recherchemanual und methodischen Regelbuch des Versorgungsatlasses des Landkreises Eichstätt**.
