@@ -2,6 +2,21 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
+# ==============================================================================
+# 🎓 KONFIGURATION / PERSONALISIERUNG (HIER EINFACH ANPASSEN!)
+# ==============================================================================
+UNI_NAME = "Katholische Stiftungshochschule München"                                      # Name Eurer Universität/Hochschule
+STUDIENGANG = "Masterstudiengang Angewandte Versorgungsforschung"         # Euer Studiengang
+SEMESTER = "Sommersemester 2026"                        # Das aktuelle Semester
+PROJEKTTITEL = "Quartiersmanagement aus interprofessioneller Perspektive"
+PROJEKTTEILNEHMER = "Christina Papacek-Zimmermann B.Sc. & Jennifer Zimmermann B.Sc."          # Eure Namen für die Bearbeitung
+
+# DATEINAME DER DATA-CSV
+# Falls Ihr die CSV-Datei auf GitHub anders benannt habt (z.B. ohne '_v2'),
+# könnt Ihr den Dateinamen hier einfach anpassen, um den 'FileNotFoundError' zu lösen!
+CSV_FILENAME = "versorgungsatlas_eichstaett_v2.csv"
+# ==============================================================================
+
 # Set page configurations
 st.set_page_config(
     page_title="Gesundheits- & Versorgungsatlas Eichstätt",
@@ -13,13 +28,19 @@ st.set_page_config(
 # Load data helper
 @st.cache_data
 def load_data():
-    return pd.read_csv("versorgungsatlas_eichstaett_v2.csv")
+    return pd.read_csv(CSV_FILENAME)
 
 try:
     df = load_data()
 except Exception as e:
-    # Fallback to local path if run locally
-    df = pd.read_csv("versorgungsatlas_eichstaett_v2.csv")
+    # Fallback/Fehlermeldung, falls die CSV nicht gefunden wurde
+    st.error(f"""
+    🚨 **Fehler beim Laden der Daten!**  
+    Die Datei `{CSV_FILENAME}` wurde im Repository nicht gefunden.  
+    **Lösung:** Vergewissert Euch, dass Ihr die CSV-Datei in Euer GitHub-Repository hochgeladen habt, 
+    oder passt die Variable `CSV_FILENAME` ganz oben im Code der `app.py` an.
+    """)
+    st.stop()
 
 # Custom Styling
 st.markdown("""
@@ -49,18 +70,13 @@ st.sidebar.image("https://img.icons8.com/clouds/150/hospital-room.png", width=10
 st.sidebar.title("Versorgungsatlas")
 st.sidebar.markdown("**Landkreis Eichstätt (Oberbayern)**")
 
-# ==============================================================================
-# HIER KÖNNT IHR EURE NAMEN UND DIE UNI DIREKT IM CODE ANPASSEN!
-# ==============================================================================
-UNI_NAME = "Katholische Stiftungshochschule München"
-PROJEKTTEILNEHMER = "Christina Papacek-Zimmermann B.Sc., Jennifer Zimmermann B.Sc."
-
+# Studentisches Infofeld in der Sidebar
 st.sidebar.markdown(f"""
 <div style="background-color:#F5F3FF; padding:12px; border-radius:5px; border-left:4px solid #7C3AED; margin-bottom:15px; font-size: 13.5px;">
     <strong>🎓 Studentisches Lehrprojekt:</strong><br>
-    Erstellt im Rahmen des Masterstudiengangs <strong>Angewandte Versorgungsforschung</strong> an der <strong>{UNI_NAME}</strong>.<br><br>
+    Erstellt im Rahmen des Masterstudiengangs <strong>{STUDIENGANG}</strong> ({SEMESTER}) an der <strong>{UNI_NAME}</strong>.<br><br>
     <strong>Projekttitel:</strong><br>
-    <em>Quartiersmanagement aus interprofessioneller Perspektive</em><br><br>
+    <em>{PROJEKTTITEL}</em><br><br>
     <strong>Bearbeitung:</strong><br>
     {PROJEKTTEILNEHMER}
 </div>
@@ -81,7 +97,7 @@ csv = df.to_csv(index=False).encode('utf-8')
 st.sidebar.download_button(
     label="📊 Original-Datenbank (CSV) herunterladen",
     data=csv,
-    file_name="versorgungsatlas_eichstaett_v2.csv",
+    file_name=CSV_FILENAME,
     mime="text/csv"
 )
 
@@ -160,7 +176,7 @@ with tab1:
     # Insight box
     st.info("""
     ℹ️ **Interpretationshinweis:** Größere Zentren wie **Eichstätt (Stadt)** oder **Kösching** weisen aufgrund ihrer zentralörtlichen Funktion, 
-    Krankenhausstandorte und der ansässigen Facharztpraxen naturgemäß die höchsten quantuativen Werte auf. Das Umland wird überregional bzw. gemeindeübergreifend mitversorgt.
+    Krankenhausstandorte und der ansässigen Facharztpraxen naturgemäß die höchsten quantitativen Werte auf. Das Umland wird überregional bzw. gemeindeübergreifend mitversorgt.
     """)
 
 with tab2:
@@ -241,16 +257,16 @@ with tab3:
     <div style="background-color:#F9FAFB; padding:15px; border-radius:8px; border:1px solid #E5E7EB; margin-bottom:25px;">
         <h4>🏫 Wissenschaftlicher Kontext (Lehrprojekt)</h4>
         Dieses interaktive System und die zugrundeliegende Erfassung wurden im Rahmen des 
-        <strong>Masterstudiengangs Angewandte Versorgungsforschung</strong> an der <strong>{UNI_NAME}</strong> erarbeitet.<br><br>
+        <strong>Masterstudiengangs {STUDIENGANG}</strong> ({SEMESTER}) an der <strong>{UNI_NAME}</strong> erarbeitet.<br><br>
         <strong>Projekt-Fokus:</strong><br>
         Es handelt sich um eine <strong>deskriptive Erfassung (Erfassungsstufen A und B)</strong> des Stadt- und Landkreises Eichstätt. 
         Ziel ist es, die bestehenden medizinischen und pflegerischen Versorgungsstrukturen systematisch zu kartieren 
         und für Akteure der regionalen Gesundheitsförderung nutzbar zu machen.<br><br>
         <strong>Interprofessioneller Ansatz:</strong><br>
-        Die Erhebung ist in das Projektmodul <strong>"Quartiersmanagement aus interprofessioneller Perspektive"</strong> eingebettet, 
+        Die Erhebung ist in das Projektmodul <strong>\"{PROJEKTTITEL}\"</strong> eingebettet, 
         das aufzeigt, wie die verschiedenen Sektoren der Gesundheits- und Soziallandschaft (Ärzte, Zahnärzte, Heilmittelerbringer, Pflege- und Beratungsstrukturen) 
         integriert zusammenwirken können, um eine lückenlose Versorgung zu gewährleisten.<br><br>
-        <em>Hinweis: Der Code kann zur Personalisierung um die Namen der Projektteilnehmer ergänzt werden.</em>
+        <em>Bearbeitung: {PROJEKTTEILNEHMER}</em>
     </div>
     """, unsafe_allow_html=True)
     
@@ -265,7 +281,7 @@ with tab3:
         st.subheader("1. Zentrale Zählregeln & Datenquellen")
         st.markdown("""
         *   **Ärztliche Versorgung (Fachgebietseinträge):** Erfasst über die *116117-Arztsuche/KVB*. Mehrfach qualifizierte Ärzte werden in jedem Fachgebiet gezählt, um das tatsächliche Spektrum abzubilden. Praxis- und MVZ-Strukturen selbst werden nicht rekonstruiert.
-        *   **Psychotherapie:** Erfasst über die *116117-Arztsuche/KVB*. Psychologische Psychotherapie und Kinder-/Jugendlichenpsychotherapie werden getrennt erhoben.
+        *   **Psychotherapie:** Erfasst über die *116117-Arztsuche/KVB*. Psychologische Psychotherapie und Kinder-/Jugendlichenpsychotherapeutinnen und -psychotherapeuten werden getrennt erhoben.
         *   **Zahnärztliche Versorgung:** Erfasst über die *Bayerische Landeszahnärztekammer*. Keine Rekonstruktion von Praxisorganisationen.
         *   **Öffentliche Apotheken:** Erfasst über die *Bayerische Landesapothekerkammer*. Jede örtliche Betriebsstätte zählt (einschließlich Filialen).
         *   **Heilmittelpraxen:** Erfasst über das *GKV-Heilmittelerbringerverzeichnis*. Zugelassene Betriebsstätten je Bereich (Physiotherapie, Ergotherapie, Logopädie, Podologie, Ernährung).
