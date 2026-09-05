@@ -109,7 +109,7 @@ Den vollständigen Atlas mit allen 30 Detailblättern können Sie über den QR-C
 
 ✉️ **Forschungsanfragen / Original Excel:**  
 Die voll funktionsfähige Excel-Matrix mit allen Erfassungsstufen ist für wissenschaftliche Zwecke auf Anfrage erhältlich.  
-_Kontaktieren Sie den Autor direkt am Poster oder per E-Mail._
+_Kontaktieren Sie die Autorinnen direkt am Poster oder per E-Mail._
 """)
 
 # MAIN PAGE
