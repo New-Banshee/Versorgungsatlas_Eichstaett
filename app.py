@@ -6,10 +6,10 @@ import plotly.express as px
 # 🎓 KONFIGURATION / PERSONALISIERUNG (HIER EINFACH ANPASSEN!)
 # ==============================================================================
 UNI_NAME = "Katholische Stiftungshochschule München"                                      # Name Eurer Universität/Hochschule
-STUDIENGANG = "Masterstudiengang Angewandte Versorgungsforschung"         # Euer Studiengang
+STUDIENGANG = "Angewandte Versorgungsforschung"         # Euer Studiengang
 SEMESTER = "Sommersemester 2026"                        # Das aktuelle Semester
 PROJEKTTITEL = "Quartiersmanagement aus interprofessioneller Perspektive"
-PROJEKTTEILNEHMER = "Christina Papacek-Zimmermann B.Sc. & Jennifer Zimmermann B.Sc."          # Eure Namen für die Bearbeitung
+PROJEKTTEILNEHMER = "Christina Papacek-Zimmermann B.Sc.   Jennifer Zimmermann B.Sc."          # Eure Namen für die Bearbeitung
 
 # DATEINAME DER DATA-CSV
 # Falls Ihr die CSV-Datei auf GitHub anders benannt habt (z.B. ohne '_v2'),
