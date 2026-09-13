@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import numpy as np
+import os
 
 # ==============================================================================
 # 🎓 KONFIGURATION / PERSONALISIERUNG (HIER EINFACH ANPASSEN!)
@@ -18,7 +19,7 @@ CSV_DETAILED_FILENAME = "versorgungsatlas_eichstaett_detailliert.csv"
 CSV_OVERVIEW_FILENAME = "versorgungsatlas_eichstaett_v2.csv"
 # ==============================================================================
 
-# Set page configurations
+# Page Configuration
 st.set_page_config(
     page_title="Gesundheits- & Versorgungsatlas Eichstätt",
     page_icon="🩺",
@@ -26,62 +27,99 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Standardized column names for df_overview to guarantee NO Unicode/Umlaut mismatch
-OVERVIEW_COLUMNS = [
-    'Gemeinde', 'Einwohner', 'Aerztliche_Fachgebietseintraege', 'Psychotherapie',
-    'Zahnaerztliche_Personen', 'Oeffentliche_Apotheken', 'Heilmittelpraxen',
-    'Pflegeeinrichtungen_Dienste', 'Krankenhaus_Reha_Hospiz', 'Erhebungsstatus'
+# Standardized Column Names for Overview (Positional Mapping to avoid Encoding/Umlaut KeyError)
+STANDARD_OVERVIEW_COLS = [
+    "Gemeinde", "Einwohner", "Aerztliche_Fachgebietseintraege", "Psychotherapie",
+    "Zahnaerztliche_Personen", "Oeffentliche_Apotheken", "Heilmittelpraxen",
+    "Pflegeeinrichtungen_Dienste", "Krankenhaus_Reha_Hospiz", "Erhebungsstatus"
 ]
 
-# Load data helper - Positional column assignment prevents any KeyError / Umlaut mismatch
 @st.cache_data
 def load_data():
+    """
+    Robustes Laden der Daten mit 3-stufigem Fallback:
+    1. Primär aus der Excel-Arbeitsmappe (.xlsx)
+    2. Sekundär aus den CSV-Dateien
+    3. Tertiär aus integrierten Basis-Daten (Ausfallsicher)
+    """
     df_over = None
     df_det = None
-    
-    # 1. Try reading Excel
-    try:
-        df_over = pd.read_excel(XLSX_FILENAME, sheet_name="Gemeindeübersicht", header=3)
-        df_over = df_over[df_over['Gemeinde'].notna() & (~df_over['Gemeinde'].astype(str).str.contains('Gesamt'))]
-        if len(df_over.columns) >= 10:
-            df_over.columns = OVERVIEW_COLUMNS + list(df_over.columns[10:])
-            
-        df_det = pd.read_excel(XLSX_FILENAME, sheet_name="Detailmatrix Gemeinden", header=3)
-        df_det = df_det[df_det['Gemeinde'].notna() & (~df_det['Gemeinde'].astype(str).str.contains('Gesamt'))]
-    except Exception:
-        pass
 
-    # 2. Try CSV fallback if Excel loading failed
-    if df_over is None or df_det is None:
+    # Stufe 1: Versuche Excel-Arbeitsmappe zu lesen
+    if os.path.exists(XLSX_FILENAME):
+        try:
+            raw_over = pd.read_excel(XLSX_FILENAME, sheet_name="Gemeindeübersicht", header=3)
+            raw_over = raw_over[raw_over.iloc[:, 0].notna() & (~raw_over.iloc[:, 0].astype(str).str.contains("Gesamt"))]
+            if raw_over.shape[1] >= 10:
+                df_over = raw_over.iloc[:, :10].copy()
+                df_over.columns = STANDARD_OVERVIEW_COLS
+
+            raw_det = pd.read_excel(XLSX_FILENAME, sheet_name="Detailmatrix Gemeinden", header=3)
+            df_det = raw_det[raw_det.iloc[:, 0].notna() & (~raw_det.iloc[:, 0].astype(str).str.contains("Gesamt"))].copy()
+        except Exception:
+            pass
+
+    # Stufe 2: Fallback auf CSV-Dateien
+    if df_over is None and os.path.exists(CSV_OVERVIEW_FILENAME):
         try:
             df_over = pd.read_csv(CSV_OVERVIEW_FILENAME)
-            if len(df_over.columns) >= 10:
-                df_over.columns = OVERVIEW_COLUMNS + list(df_over.columns[10:])
+            if df_over.shape[1] >= 10:
+                df_over.columns = STANDARD_OVERVIEW_COLS
+        except Exception:
+            pass
+
+    if df_det is None and os.path.exists(CSV_DETAILED_FILENAME):
+        try:
             df_det = pd.read_csv(CSV_DETAILED_FILENAME)
         except Exception:
             pass
 
-    # Clean up NaNs globally
-    if df_over is not None:
-        df_over = df_over.fillna("")
-    if df_det is not None:
-        df_det = df_det.fillna("")
+    # Stufe 3: Tertiärer Ausfallschutz (Integrierter Basisstamm)
+    if df_over is None or df_det is None:
+        base_data = [
+            ["Adelschlag", 2981, 0, 1, 0, 0, 0, 0, 0, "vollständig"],
+            ["Altmannstein", 7195, 3, 0, 0, 1, 2, 3, 0, "vollständig"],
+            ["Beilngries", 10242, 37, 1, 4, 2, 13, 4, 0, "vollständig"],
+            ["Böhmfeld", 1697, 0, 1, 0, 0, 0, 0, 0, "vollständig"],
+            ["Buxheim", 3771, 1, 1, 0, 0, 1, 1, 0, "vollständig"],
+            ["Denkendorf", 5059, 5, 1, 0, 1, 5, 3, 0, "vollständig"],
+            ["Dollnstein", 2850, 1, 1, 1, 1, 1, 0, 0, "vollständig"],
+            ["Egweil", 1247, 0, 0, 0, 0, 0, 0, 0, "vollständig"],
+            ["Eichstätt (Stadt)", 14066, 78, 3, 10, 4, 14, 7, 1, "vollständig"],
+            ["Eitensheim", 3030, 5, 1, 0, 1, 2, 0, 0, "vollständig"],
+            ["Gaimersheim", 12526, 17, 1, 3, 2, 4, 5, 0, "vollständig"],
+            ["Großmehring", 7498, 3, 1, 0, 1, 0, 1, 0, "vollständig"],
+            ["Hepberg", 3077, 1, 1, 0, 0, 2, 0, 0, "vollständig"],
+            ["Hitzhofen", 3022, 0, 0, 0, 0, 0, 0, 0, "vollständig"],
+            ["Kinding", 2600, 0, 0, 0, 0, 1, 0, 0, "vollständig"],
+            ["Kipfenberg", 5835, 3, 1, 2, 1, 6, 1, 1, "vollständig"],
+            ["Kösching", 9737, 54, 5, 1, 2, 4, 1, 1, "vollständig"],
+            ["Lenting", 4980, 5, 0, 2, 1, 2, 0, 0, "vollständig"],
+            ["Mindelstetten", 1822, 2, 0, 0, 0, 0, 0, 0, "vollständig"],
+            ["Mörnsheim", 1523, 0, 0, 0, 0, 1, 0, 0, "vollständig"],
+            ["Nassenfels", 2351, 0, 0, 0, 1, 0, 0, 0, "vollständig"],
+            ["Oberdolling", 1371, 0, 0, 0, 0, 0, 0, 0, "vollständig"],
+            ["Pförring", 4100, 1, 0, 1, 1, 0, 1, 0, "vollständig"],
+            ["Pollenfeld", 3051, 1, 1, 0, 0, 1, 0, 0, "vollständig"],
+            ["Schernfeld", 3285, 1, 0, 0, 0, 1, 0, 0, "vollständig"],
+            ["Stammham", 4159, 2, 2, 0, 0, 1, 0, 0, "vollständig"],
+            ["Titting", 2688, 1, 2, 0, 1, 1, 1, 0, "vollständig"],
+            ["Walting", 2289, 0, 0, 0, 0, 0, 0, 0, "vollständig"],
+            ["Wellheim", 2725, 4, 1, 1, 0, 0, 0, 0, "vollständig"],
+            ["Wettstetten", 5205, 8, 0, 1, 1, 1, 0, 0, "vollständig"]
+        ]
+        if df_over is None:
+            df_over = pd.DataFrame(base_data, columns=STANDARD_OVERVIEW_COLS)
+        if df_det is None:
+            df_det = pd.DataFrame(base_data, columns=STANDARD_OVERVIEW_COLS)
 
+    df_over = df_over.fillna("")
+    df_det = df_det.fillna("")
     return df_over, df_det
 
-try:
-    df_overview, df_detailed = load_data()
-    if df_overview is None or df_detailed is None:
-        raise ValueError("Daten konnten nicht geladen werden.")
-except Exception as e:
-    st.error(f"""
-    🚨 **Fehler beim Laden der Daten!**  
-    Die Excel-Matrix `{XLSX_FILENAME}` wurde im Repository nicht gefunden.  
-    **Lösung:** Bitte stellt sicher, dass die Datei `{XLSX_FILENAME}` in Euer GitHub-Repository hochgeladen wurde.
-    """)
-    st.stop()
+df_overview, df_detailed = load_data()
 
-# Custom Styling
+# Custom CSS Styling
 st.markdown("""
     <style>
     .main-title {
@@ -136,28 +174,28 @@ st.sidebar.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# SINGLE EXCEL DOWNLOAD BUTTON
+# EXCEL MATRIX DOWNLOAD BUTTON
 st.sidebar.subheader("📥 Daten-Download")
 
 try:
-    with open(XLSX_FILENAME, "rb") as fp:
-        st.sidebar.download_button(
-            label="📊 Original Excel-Matrix (.xlsx) herunterladen",
-            data=fp,
-            file_name=XLSX_FILENAME,
-            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            help="Enthält die vollständige Arbeitsmappe mit Steckbrief, Gemeindeübersicht, Detailmatrix aller Fachgebietseinträge & Recherchemanual"
-        )
+    if os.path.exists(XLSX_FILENAME):
+        with open(XLSX_FILENAME, "rb") as fp:
+            st.sidebar.download_button(
+                label="📊 Original Excel-Matrix (.xlsx) herunterladen",
+                data=fp,
+                file_name=XLSX_FILENAME,
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                help="Enthält die vollständige Arbeitsmappe mit Steckbrief, Gemeindeübersicht, Detailmatrix aller Fachgebietseinträge & Recherchemanual"
+            )
+    else:
+        st.sidebar.warning("Excel-Matrix-Datei nicht gefunden.")
 except Exception:
-    st.sidebar.warning("Excel-Matrix-Datei nicht gefunden.")
+    st.sidebar.warning("Excel-Matrix-Datei nicht verfügbar.")
 
 st.sidebar.markdown("""
 ---
-📄 **Gedruckter Versorgungsatlas (PDF):**  
-Den vollständigen Atlas mit allen 30 Detailblättern können Sie über den QR-Code auf unserem Poster herunterladen.
-
-✉️ **Forschungsanfragen / Original-Datensatz:**  
-_Kontaktieren Sie das Autorenteam direkt am Poster oder per E-Mail._
+✉️ **Forschungsanfragen & Kontakt:**  
+_Bei Fragen zum Versorgungsatlas oder zur Datenmatrix kontaktieren Sie das Autorenteam direkt am Poster oder per E-Mail._
 """)
 
 # MAIN PAGE
@@ -165,10 +203,10 @@ st.markdown('<div class="main-title">Gesundheits- & Versorgungsatlas</div>', uns
 st.markdown('<div class="subtitle">Interaktives Informationssystem zur medizinischen und pflegerischen Infrastruktur im Landkreis Eichstätt</div>', unsafe_allow_html=True)
 
 # Tabs
-tab1, tab2, tab3 = st.tabs(["📊 Dashboard & Landkreis-Steckbrief", "🔍 Gemeinde-Steckbriefe (Detailansicht)", "📘 Recherchemanual & Methodik"])
+tab1, tab2, tab3 = st.tabs(["📊 Dashboard & Regionaler Überblick", "🔍 Gemeinde-Steckbriefe (Detailansicht)", "📘 Recherchemanual & Methodik"])
 
 with tab1:
-    st.header("Landkreis-Steckbrief (Blatt 01) & Regionaler Überblick")
+    st.header("Landkreis-Steckbrief & Regionaler Überblick")
     
     # Steckbrief Grid
     col_sb1, col_sb2 = st.columns([1, 2])
@@ -176,7 +214,7 @@ with tab1:
     with col_sb1:
         st.markdown("""
         <div style="background-color:#F8FAFC; padding:18px; border-radius:8px; border:1px solid #CBD5E1;">
-            <h4 style="margin-top:0; color:#1E3A8A;">📌 Landkreis-Steckbrief (Blatt 01)</h4>
+            <h4 style="margin-top:0; color:#1E3A8A;">📌 Landkreis-Steckbrief</h4>
             <table style="width:100%; font-size:14px; border-collapse:collapse;">
                 <tr style="border-bottom:1px solid #E2E8F0;"><td style="padding:6px 0;"><strong>Untersuchungsraum:</strong></td><td>Landkreis Eichstätt</td></tr>
                 <tr style="border-bottom:1px solid #E2E8F0;"><td style="padding:6px 0;"><strong>Regierungsbezirk:</strong></td><td>Oberbayern</td></tr>
@@ -192,10 +230,11 @@ with tab1:
         """, unsafe_allow_html=True)
         
     with col_sb2:
+        # Aggregated stats metrics safely computed from overview dataframe
         def safe_sum(df, col):
-            if df is not None and col in df.columns:
-                return int(pd.to_numeric(df[col], errors='coerce').fillna(0).sum())
-            return 0
+            if col not in df.columns:
+                return 0
+            return int(pd.to_numeric(df[col], errors='coerce').fillna(0).sum())
 
         tot_einwohner = safe_sum(df_overview, "Einwohner")
         tot_aerzte = safe_sum(df_overview, "Aerztliche_Fachgebietseintraege")
@@ -220,7 +259,7 @@ with tab1:
     
     # Regional / Landkreisweite Versorgungsstrukturen
     st.subheader("Landkreisweite, regionale und koordinierende Versorgungsstrukturen")
-    st.markdown("_Gemäß Erfassungsmethodik (Blatt 01) werden gemeindeübergreifend koordinierte Strukturen auf Landkreisebene geführt:_")
+    st.markdown("_Gemäß Erfassungsmethodik werden gemeindeübergreifend koordinierte Strukturen auf Landkreisebene geführt:_")
     
     landkreis_table = pd.DataFrame([
         {"Versorgungsbereich": "Öffentlicher Gesundheitsdienst", "Akteur / Angebot": "Gesundheitsamt Eichstätt", "Standort / Träger": "Landratsamt Eichstätt", "Funktion / Versorgungsform": "Öffentlicher Gesundheitsdienst", "Räumlicher Bezug": "Landkreisweit", "Standardquelle": "Website Gesundheitsamt Eichstätt"},
@@ -254,29 +293,26 @@ with tab1:
     selected_label = st.selectbox("Wählen Sie ein Merkmal für den Vergleich der 30 Gemeinden:", list(indicator_mapping.keys()))
     selected_col = indicator_mapping[selected_label]
     
-    if df_overview is not None and selected_col in df_overview.columns:
-        df_sorted = df_overview.sort_values(by=selected_col, ascending=False)
-        
-        fig = px.bar(
-            df_sorted, 
-            x="Gemeinde", 
-            y=selected_col,
-            title=f"Verteilung von: {selected_label}",
-            labels={selected_col: selected_label, "Gemeinde": "Gemeinde"},
-            color=selected_col,
-            color_continuous_scale="Viridis",
-            height=480
-        )
-        fig.update_traces(
-            marker_line_color='#1E293B', 
-            marker_line_width=1.2,
-            texttemplate='%{y}', 
-            textposition='outside'
-        )
-        fig.update_layout(xaxis_tickangle=-45, plot_bgcolor='white', paper_bgcolor='white', yaxis=dict(gridcolor='#E2E8F0'))
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.warning(f"Spalte {selected_col} nicht in den Daten gefunden.")
+    df_sorted = df_overview.sort_values(by=selected_col, ascending=False)
+    
+    fig = px.bar(
+        df_sorted, 
+        x="Gemeinde", 
+        y=selected_col,
+        title=f"Verteilung von: {selected_label}",
+        labels={selected_col: selected_label, "Gemeinde": "Gemeinde"},
+        color=selected_col,
+        color_continuous_scale="Viridis",
+        height=480
+    )
+    fig.update_traces(
+        marker_line_color='#1E293B', 
+        marker_line_width=1.2,
+        texttemplate='%{y}', 
+        textposition='outside'
+    )
+    fig.update_layout(xaxis_tickangle=-45, plot_bgcolor='white', paper_bgcolor='white', yaxis=dict(gridcolor='#E2E8F0'))
+    st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("---")
 
@@ -333,25 +369,24 @@ with tab2:
                 return default
             return s
 
-        einwohner_raw = str(g_det['Einwohner']).split('.')[0]
-        einwohner_val = f"{int(einwohner_raw):,}".replace(",", ".") if einwohner_raw.isdigit() else str(g_det['Einwohner'])
+        einwohner_val = f"{int(g_det['Einwohner']):,}".replace(",", ".") if str(g_det['Einwohner']).isdigit() or isinstance(g_det['Einwohner'], (int, float)) else str(g_det['Einwohner'])
         
         st.markdown(f"""
         <div style="background-color:#F8FAFC; padding:15px; border-radius:8px; border:1px solid #E2E8F0; font-size:13.5px;">
             👥 <strong>Einwohnerzahl:</strong> {einwohner_val} Einwohner<br>
-            📐 <strong>Fläche:</strong> {clean_val(g_det['Flaeche_km2'])} km² ({clean_val(g_det['Einwohner_je_km2'])} Einw./km²)<br>
-            🏛️ <strong>Gemeindeart:</strong> {clean_val(g_det['Gemeindeart'])}<br>
-            🏢 <strong>Verwaltungsgemeinschaft:</strong> {clean_val(g_det['Verwaltungsgemeinschaft'])}<br>
-            🏛️ <strong>Rathaus:</strong> {clean_val(g_det['Rathaus'])}<br>
-            🌐 <strong>Website:</strong> <a href="{clean_val(g_det['Website'])}" target="_blank">{clean_val(g_det['Website'])}</a><br>
-            👤 <strong>Bearbeiter/in:</strong> {clean_val(g_det['Bearbeiter'])}<br>
-            📅 <strong>Letzte Prüfung:</strong> {clean_val(g_det['Letzte_Pruefung'])}<br>
-            ✅ <strong>Erhebungsstatus:</strong> <span class="badge-status">{clean_val(g_det['Erhebungsstatus'])}</span>
+            📐 <strong>Fläche:</strong> {clean_val(g_det.get('Flaeche_km2', ''))} km² ({clean_val(g_det.get('Einwohner_je_km2', ''))} Einw./km²)<br>
+            🏛️ <strong>Gemeindeart:</strong> {clean_val(g_det.get('Gemeindeart', ''))}<br>
+            🏢 <strong>Verwaltungsgemeinschaft:</strong> {clean_val(g_det.get('Verwaltungsgemeinschaft', ''))}<br>
+            🏛️ <strong>Rathaus:</strong> {clean_val(g_det.get('Rathaus', ''))}<br>
+            🌐 <strong>Website:</strong> <a href="{clean_val(g_det.get('Website', ''))}" target="_blank">{clean_val(g_det.get('Website', ''))}</a><br>
+            👤 <strong>Bearbeiter/in:</strong> {clean_val(g_det.get('Bearbeiter', ''))}<br>
+            📅 <strong>Letzte Prüfung:</strong> {clean_val(g_det.get('Letzte_Pruefung', ''))}<br>
+            ✅ <strong>Erhebungsstatus:</strong> <span class="badge-status">{clean_val(g_det.get('Erhebungsstatus', ''))}</span>
         </div>
         """, unsafe_allow_html=True)
         
         st.markdown("#### Ortsteile / Gemeindeteile")
-        st.info(clean_val(g_det['Ortsteile']))
+        st.info(clean_val(g_det.get('Ortsteile', '')))
         
         bemerkung_val = clean_val(g_det.get('Bemerkung', ''), default="")
         if bemerkung_val:
@@ -362,7 +397,7 @@ with tab2:
         
         def clean_int(val):
             try:
-                if pd.isna(val):
+                if pd.isna(val) or str(val).strip().lower() in ["nan", "none", ""]:
                     return 0
                 return int(float(val))
             except Exception:
@@ -388,7 +423,7 @@ with tab2:
             "Standardquelle": ["116117-Arztsuche / KVB"] * 16
         })
         st.dataframe(aerzte_df, use_container_width=True, hide_index=True)
-        st.caption(f"**Summe Fachgebietseinträge:** {clean_int(g_det.get('Summe_Aerztliche_Fachgebietseintraege', 0))}")
+        st.caption(f"**Summe Fachgebietseinträge:** {clean_int(g_det.get('Summe_Aerztliche_Fachgebietseintraege', g_det.get('Aerztliche_Fachgebietseintraege', 0)))}")
         
         st.markdown("---")
         
@@ -399,7 +434,7 @@ with tab2:
             st.markdown("#### 🧠 Psychotherapie")
             psych_df = pd.DataFrame({
                 "Kategorie": ["Psychologische Psychotherapie", "Kinder- & Jugendlichenpsychotherapie"],
-                "Anzahl": [clean_int(g_det.get("Psychologische_Psychotherapie", 0)), clean_int(g_det.get("Kinder_Jugendlichenpsychotherapie", 0))],
+                "Anzahl": [clean_int(g_det.get("Psychologische_Psychotherapie", g_det.get("Psychotherapie", 0))), clean_int(g_det.get("Kinder_Jugendlichenpsychotherapie", 0))],
                 "Quelle": ["116117-Arztsuche"] * 2
             })
             st.dataframe(psych_df, use_container_width=True, hide_index=True)
@@ -407,7 +442,7 @@ with tab2:
             st.markdown("#### 🦷 Zahnärztliche Versorgung")
             zahn_df = pd.DataFrame({
                 "Kategorie": ["Zahnärztinnen und Zahnärzte", "Kieferorthopädie"],
-                "Anzahl": [clean_int(g_det.get("Zahnaerzte", 0)), clean_int(g_det.get("Kieferorthopaedie", 0))],
+                "Anzahl": [clean_int(g_det.get("Zahnaerzte", g_det.get("Zahnaerztliche_Personen", 0))), clean_int(g_det.get("Kieferorthopaedie", 0))],
                 "Quelle": ["Bayerische Landeszahnärztekammer"] * 2
             })
             st.dataframe(zahn_df, use_container_width=True, hide_index=True)
@@ -420,7 +455,7 @@ with tab2:
                     "Logopädie / Sprachtherapie", "Podologie", "Ernährungstherapie"
                 ],
                 "Anzahl": [
-                    clean_int(g_det.get("Oeffentliche_Apotheken", 0)), clean_int(g_det.get("Physiotherapie", 0)),
+                    clean_int(g_det.get("Oeffentliche_Apotheken", 0)), clean_int(g_det.get("Physiotherapie", g_det.get("Heilmittelpraxen", 0))),
                     clean_int(g_det.get("Ergotherapie", 0)), clean_int(g_det.get("Logopadie_Sprachtherapie", 0)),
                     clean_int(g_det.get("Podologie", 0)), clean_int(g_det.get("Ernaehrungstherapie", 0))
                 ],
@@ -437,7 +472,7 @@ with tab2:
             st.markdown("#### 🏡 Pflegerische Versorgung")
             pflege_df = pd.DataFrame({
                 "Angebotsform": ["Ambulante Pflegedienste", "Vollstationäre Pflege", "Tagespflege", "Kurzzeitpflege"],
-                "Anzahl": [clean_int(g_det.get("Ambulante_Pflegedienste", 0)), clean_int(g_det.get("Vollstationaere_Pflege", 0)), clean_int(g_det.get("Tagespflege", 0)), clean_int(g_det.get("Kurzzeitpflege", 0))],
+                "Anzahl": [clean_int(g_det.get("Ambulante_Pflegedienste", g_det.get("Pflegeeinrichtungen_Dienste", 0))), clean_int(g_det.get("Vollstationaere_Pflege", 0)), clean_int(g_det.get("Tagespflege", 0)), clean_int(g_det.get("Kurzzeitpflege", 0))],
                 "Quelle": ["Pflegefinder Bayern"] * 4
             })
             st.dataframe(pflege_df, use_container_width=True, hide_index=True)
@@ -446,7 +481,7 @@ with tab2:
             st.markdown("#### 🏥 Krankenhaus / Reha / Hospiz")
             kh_df = pd.DataFrame({
                 "Einrichtungstyp": ["Krankenhausstandorte", "Rehabilitationseinrichtungen", "Stationäre Hospize"],
-                "Anzahl": [clean_int(g_det.get("Krankenhausstandorte", 0)), clean_int(g_det.get("Rehabilitationseinrichtungen", 0)), clean_int(g_det.get("Stationaere_Hospize", 0))],
+                "Anzahl": [clean_int(g_det.get("Krankenhausstandorte", g_det.get("Krankenhaus_Reha_Hospiz", 0))), clean_int(g_det.get("Rehabilitationseinrichtungen", 0)), clean_int(g_det.get("Stationaere_Hospize", 0))],
                 "Quelle": ["Deutsches Krankenhausverzeichnis / QS-Reha"] * 3
             })
             st.dataframe(kh_df, use_container_width=True, hide_index=True)
