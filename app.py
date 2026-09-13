@@ -26,13 +26,29 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Load data helper
+# Load data helper - Reads directly from the Excel Matrix!
 @st.cache_data
 def load_data():
-    df_over = pd.read_csv(CSV_OVERVIEW_FILENAME)
-    df_det = pd.read_csv(CSV_DETAILED_FILENAME)
-    
-    # Clean up NaNs globally to prevent 'nan' or 'None' display
+    try:
+        # Primary: Read directly from Excel file (no CSVs required)
+        df_over = pd.read_excel(XLSX_FILENAME, sheet_name="Gemeindeübersicht", header=3)
+        df_over = df_over[df_over['Gemeinde'].notna() & (~df_over['Gemeinde'].astype(str).str.contains('Gesamt'))]
+        rename_map = {
+            'Ärztliche Fachgebietseinträge': 'Aerztliche_Fachgebietseintraege',
+            'Zahnärztliche Personen': 'Zahnaerztliche_Personen',
+            'Öffentliche Apotheken': 'Oeffentliche_Apotheken',
+            'Pflegeeinrichtungen / -dienste': 'Pflegeeinrichtungen_Dienste',
+            'Krankenhaus / Reha / Hospiz': 'Krankenhaus_Reha_Hospiz'
+        }
+        df_over = df_over.rename(columns=rename_map)
+        
+        df_det = pd.read_excel(XLSX_FILENAME, sheet_name="Detailmatrix Gemeinden", header=3)
+        df_det = df_det[df_det['Gemeinde'].notna() & (~df_det['Gemeinde'].astype(str).str.contains('Gesamt'))]
+    except Exception:
+        # Fallback to CSVs if Excel file is not present
+        df_over = pd.read_csv(CSV_OVERVIEW_FILENAME)
+        df_det = pd.read_csv(CSV_DETAILED_FILENAME)
+        
     df_over = df_over.fillna("")
     df_det = df_det.fillna("")
     return df_over, df_det
@@ -42,8 +58,8 @@ try:
 except Exception as e:
     st.error(f"""
     🚨 **Fehler beim Laden der Daten!**  
-    Eine der benötigten Dateien (`{CSV_OVERVIEW_FILENAME}` oder `{CSV_DETAILED_FILENAME}`) wurde im Repository nicht gefunden.  
-    **Lösung:** Vergewissert Euch, dass Ihr alle erstellten Daten-Dateien in Euer GitHub-Repository hochgeladen habt.
+    Die Excel-Matrix `{XLSX_FILENAME}` wurde im Repository nicht gefunden.  
+    **Lösung:** Bitte stellt sicher, dass die Datei `{XLSX_FILENAME}` in Euer GitHub-Repository hochgeladen wurde.
     """)
     st.stop()
 
@@ -102,9 +118,9 @@ st.sidebar.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-st.sidebar.subheader("📥 Downloads (Vollständige Daten)")
+# SINGLE EXCEL DOWNLOAD BUTTON (as explicitly requested)
+st.sidebar.subheader("📥 Daten-Download")
 
-# 1. Download XLSX
 try:
     with open(XLSX_FILENAME, "rb") as fp:
         st.sidebar.download_button(
@@ -112,29 +128,10 @@ try:
             data=fp,
             file_name=XLSX_FILENAME,
             mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-            help="Enthält alle 4 Tabellenblätter: Steckbrief, Gemeindeübersicht, Detailmatrix aller Fachgebietseinträge & Recherchemanual"
+            help="Enthält die vollständige Arbeitsmappe mit Steckbrief, Gemeindeübersicht, Detailmatrix aller Fachgebietseinträge & Recherchemanual"
         )
 except Exception:
-    pass
-
-# 2. Download Detailed CSV
-csv_det_bytes = df_detailed.to_csv(index=False).encode('utf-8')
-st.sidebar.download_button(
-    label="📈 Detaillierte Fachkategorien (.csv) herunterladen",
-    data=csv_det_bytes,
-    file_name=CSV_DETAILED_FILENAME,
-    mime="text/csv",
-    help="Enthält alle Aufschlüsselungen nach Fachärzten, Psychotherapie, Zahnärzten, Heilmitteln und Pflege"
-)
-
-# 3. Download Overview CSV
-csv_over_bytes = df_overview.to_csv(index=False).encode('utf-8')
-st.sidebar.download_button(
-    label="📋 Gemeindeübersicht (.csv) herunterladen",
-    data=csv_over_bytes,
-    file_name=CSV_OVERVIEW_FILENAME,
-    mime="text/csv"
-)
+    st.sidebar.warning("Excel-Matrix-Datei nicht gefunden.")
 
 st.sidebar.markdown("""
 ---
@@ -178,13 +175,16 @@ with tab1:
         
     with col_sb2:
         # Aggregated stats metrics
-        tot_einwohner = int(df_overview["Einwohner"].sum())
-        tot_aerzte = int(df_overview["Aerztliche_Fachgebietseintraege"].sum())
-        tot_psych = int(df_overview["Psychotherapie"].sum())
-        tot_zahnaerzte = int(df_overview["Zahnaerztliche_Personen"].sum())
-        tot_apotheken = int(df_overview["Oeffentliche_Apotheken"].sum())
-        tot_heilmittel = int(df_overview["Heilmittelpraxen"].sum())
-        tot_pflege = int(df_overview["Pflegeeinrichtungen_Dienste"].sum())
+        def safe_sum(df, col):
+            return int(pd.to_numeric(df[col], errors='coerce').fillna(0).sum())
+
+        tot_einwohner = safe_sum(df_overview, "Einwohner")
+        tot_aerzte = safe_sum(df_overview, "Aerztliche_Fachgebietseintraege")
+        tot_psych = safe_sum(df_overview, "Psychotherapie")
+        tot_zahnaerzte = safe_sum(df_overview, "Zahnaerztliche_Personen")
+        tot_apotheken = safe_sum(df_overview, "Oeffentliche_Apotheken")
+        tot_heilmittel = safe_sum(df_overview, "Heilmittelpraxen")
+        tot_pflege = safe_sum(df_overview, "Pflegeeinrichtungen_Dienste")
         
         st.markdown("#### 📊 Aggregierte Gesamtstruktur im Landkreis Eichstätt")
         m_col1, m_col2, m_col3 = st.columns(3)
@@ -203,7 +203,6 @@ with tab1:
     st.subheader("Landkreisweite, regionale und koordinierende Versorgungsstrukturen")
     st.markdown("_Gemäß Erfassungsmethodik (Blatt 01) werden gemeindeübergreifend koordinierte Strukturen auf Landkreisebene geführt:_")
     
-    # Clean keys with ZERO mismatched names to prevent 'None' / 'NaN'
     landkreis_table = pd.DataFrame([
         {"Versorgungsbereich": "Öffentlicher Gesundheitsdienst", "Akteur / Angebot": "Gesundheitsamt Eichstätt", "Standort / Träger": "Landratsamt Eichstätt", "Funktion / Versorgungsform": "Öffentlicher Gesundheitsdienst", "Räumlicher Bezug": "Landkreisweit", "Standardquelle": "Website Gesundheitsamt Eichstätt"},
         {"Versorgungsbereich": "Gesundheitsförderung & Koordination", "Akteur / Angebot": "Gesundheitsregionplus", "Standort / Träger": "Landkreis Eichstätt", "Funktion / Versorgungsform": "Koordination, Vernetzung & Prävention", "Räumlicher Bezug": "Landkreisweit", "Standardquelle": "Website Landkreis Eichstätt"},
@@ -265,11 +264,6 @@ with tab1:
     _Methode: Um eine methodisch saubere Gegenüberstellung ohne Durchmischung von Bundes- und Landesebene zu gewährleisten, werden die Erfassungswerte des Landkreises Eichstätt einheitlich dem **Landesdurchschnitt Bayern** gegenübergestellt._
     """)
 
-    # Densities per 100,000 inhabitants
-    # Eichstätt pop: 135,982
-    # Apotheken LK: 21 -> 15.4 / 100k vs Bayern: 20.2 / 100k
-    # Aerztliche Fachgebietseintraege LK: 214 -> 157.4 / 100k vs Bayern (Vertragsärzte/Psych.): 198.4 / 100k
-    # Zahnaerztliche Personen LK: 25 -> 18.4 / 100k (Register-Effekt) vs Bayern: 87.2 / 100k
     benchmark_df = pd.DataFrame([
         {"Versorgungsindikator": "Öffentliche Apotheken (je 100k Einw.)", "Landkreis Eichstätt": 15.4, "Bayern-Durchschnitt": 20.2},
         {"Versorgungsindikator": "Ambulante Ärzt/innen & Psych. (je 100k Einw.)", "Landkreis Eichstätt": 157.4, "Bayern-Durchschnitt": 198.4},
@@ -289,7 +283,6 @@ with tab1:
     fig_bench.update_layout(plot_bgcolor='white', paper_bgcolor='white', yaxis=dict(gridcolor='#E2E8F0'), legend_title_text="")
     st.plotly_chart(fig_bench, use_container_width=True)
 
-    # Methodological Sources Caption
     st.caption("""
     📌 **Quellen und Stichtagsnachweis der Referenzdaten:**
     * **Einwohnerzahl Stichtag:** 31.12.2025 (Bayerisches Landesamt für Statistik).
@@ -310,7 +303,6 @@ with tab2:
     with col_g1:
         st.markdown(f"### Gemeindesteckbrief: **{selected_gemeinde}**")
         
-        # Helper to format clean text without 'nan'
         def clean_val(val, default="-"):
             if pd.isna(val):
                 return default
@@ -338,7 +330,6 @@ with tab2:
         st.markdown("#### Ortsteile / Gemeindeteile")
         st.info(clean_val(g_det['Ortsteile']))
         
-        # Check remark carefully so 'nan' is NEVER displayed
         bemerkung_val = clean_val(g_det.get('Bemerkung', ''), default="")
         if bemerkung_val:
             st.warning(f"⚠️ **Besondere Bemerkung:** {bemerkung_val}")
@@ -346,7 +337,6 @@ with tab2:
     with col_g2:
         st.markdown(f"### Detaillierte Fachkategorien: **{selected_gemeinde}**")
         
-        # Helper to convert float counts to clean ints
         def clean_int(val):
             try:
                 if pd.isna(val) or str(val).strip().lower() in ["nan", "none", ""]:
@@ -456,7 +446,7 @@ with tab3:
         integriert zusammenwirken können, um eine lückenlose Versorgung zu gewährleisten.<br><br>
         <em>Bearbeitung: {PROJEKTTEILNEHMER}</em>
     </div>
-    """, unsafe_allow_html=True)
+    """, unsafe_allowed_html=True)
     
     st.markdown("""
     Dieses interaktive System basiert auf dem offiziellen **Recherchemanual und methodischen Regelbuch des Versorgungsatlasses des Landkreises Eichstätt**.
