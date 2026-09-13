@@ -2,15 +2,14 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import numpy as np
-import io
 
 # ==============================================================================
 # 🎓 KONFIGURATION / PERSONALISIERUNG
 # ==============================================================================
-UNI_NAME = "Katholische Stiftungshochschule München"                                      # Name Eurer Universität/Hochschule
+UNI_NAME = "Katholischen Stiftungshochschule München"                                      # Name Eurer Universität/Hochschule
 STUDIENGANG = "Angewandte Versorgungsforschung"         # Euer Studiengang
 SEMESTER = "Sommersemester 2026"                        # Das aktuelle Semester
-PROJEKTTITEL = "Quartiersmanagement aus interprofessioneller Perspektive"
+PROJEKTTITEL = """Quartiersmanagment aus interprofessioneller Perspektive: Versorgungsformen und -strukturen von Stadt und Landkreis Eichstätt - eine explorative Mixed-Methods-Studie"""
 PROJEKTTEILNEHMER = "Christina Papacek-Zimmermann B.Sc., Jennifer Zimmermann B.Sc."          # Eure Namen für die Bearbeitung
 
 # DATEINAMEN DER DATEN-DATEIEN
@@ -27,114 +26,52 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Standardized 10 Column Names for Gemeindeübersicht
-OVERVIEW_COLS = [
-    'Gemeinde', 'Einwohner', 'Aerztliche_Fachgebietseintraege', 'Psychotherapie',
-    'Zahnaerztliche_Personen', 'Oeffentliche_Apotheken', 'Heilmittelpraxen',
-    'Pflegeeinrichtungen_Dienste', 'Krankenhaus_Reha_Hospiz', 'Erhebungsstatus'
-]
-
-# Standardized 53 Column Names for Detailmatrix
-DETAILED_COLS = [
-    'Gemeinde', 'Einwohner', 'Flaeche_km2', 'Einwohner_je_km2', 'Gemeindeart',
-    'Verwaltungsgemeinschaft', 'Ortsteile', 'Rathaus', 'Website', 'Bearbeiter',
-    'Letzte_Pruefung', 'Erhebungsstatus', 'Allgemeinmedizin', 'Praktische_Aerzte',
-    'Innere_Medizin', 'Kinder_Jugendmedizin', 'Frauenheilkunde', 'HNO',
-    'Augenheilkunde', 'Hautkrankheiten', 'Orthopaedie', 'Chirurgie', 'Neurologie',
-    'Psychiatrie_Psychotherapie', 'Urologie', 'Anaesthesiologie', 'Radiologie',
-    'Weitere_Fachgebiete', 'Psychologische_Psychotherapie',
-    'Kinder_Jugendlichenpsychotherapie', 'Zahnaerzte', 'Kieferorthopaedie',
-    'Oeffentliche_Apotheken', 'Physiotherapie', 'Ergotherapie',
-    'Logopadie_Sprachtherapie', 'Podologie', 'Ernaehrungstherapie',
-    'Ambulante_Pflegedienste', 'Vollstationaere_Pflege', 'Tagespflege',
-    'Kurzzeitpflege', 'Krankenhausstandorte', 'Rehabilitationseinrichtungen',
-    'Stationaere_Hospize', 'Bemerkung', 'Summe_Aerztliche_Fachgebietseintraege',
-    'Summe_Psychotherapie', 'Summe_Zahnaerztliche_Personen', 'Zahnaerztliche_Personen',
-    'Summe_Heilmittelpraxen', 'Summe_Pflegeeinrichtungen_Dienste', 'Summe_Krankenhaus_Reha_Hospiz'
-]
-
+# Load data helper - Reads directly from the Excel Matrix with positional safety
 @st.cache_data
 def load_data():
-    df_over = None
-    df_det = None
-    
-    # 1. Try reading Excel Matrix (Primary Source)
     try:
         df_over = pd.read_excel(XLSX_FILENAME, sheet_name="Gemeindeübersicht", header=3)
-        df_over = df_over[df_over.iloc[:, 0].notna() & (~df_over.iloc[:, 0].astype(str).str.contains('Gesamt'))]
-        if len(df_over.columns) >= 10:
-            df_over = df_over.iloc[:, :10]
-            df_over.columns = OVERVIEW_COLS
-            
-        df_det = pd.read_excel(XLSX_FILENAME, sheet_name="Detailmatrix Gemeinden", header=3)
-        df_det = df_det[df_det.iloc[:, 0].notna() & (~df_det.iloc[:, 0].astype(str).str.contains('Gesamt'))]
-        if len(df_det.columns) >= 53:
-            df_det = df_det.iloc[:, :53]
-            df_det.columns = DETAILED_COLS
-    except Exception:
-        pass
-
-    # 2. Try reading CSV files if Excel failed
-    if df_over is None or df_det is None:
-        try:
-            df_over = pd.read_csv(CSV_OVERVIEW_FILENAME)
-            if len(df_over.columns) >= 10:
-                df_over = df_over.iloc[:, :10]
-                df_over.columns = OVERVIEW_COLS
-
-            df_det = pd.read_csv(CSV_DETAILED_FILENAME)
-            if len(df_det.columns) >= 53:
-                df_det = df_det.iloc[:, :53]
-                df_det.columns = DETAILED_COLS
-        except Exception:
-            pass
-
-    # 3. Built-in Emergency Fallback Dataframe (Guarantees zero crashes on Streamlit Cloud)
-    if df_over is None or df_det is None:
-        raw_over = [
-            ["Adelschlag", 2981, 0, 1, 0, 0, 0, 0, 0, "vollständig"],
-            ["Altmannstein", 7195, 3, 0, 0, 1, 2, 3, 0, "vollständig"],
-            ["Beilngries", 10242, 37, 1, 4, 2, 13, 4, 0, "vollständig"],
-            ["Böhmfeld", 1697, 0, 1, 0, 0, 0, 0, 0, "vollständig"],
-            ["Buxheim", 3771, 1, 1, 0, 0, 1, 1, 0, "vollständig"],
-            ["Denkendorf", 5059, 5, 1, 0, 1, 5, 3, 0, "vollständig"],
-            ["Dollnstein", 2850, 1, 1, 1, 1, 1, 0, 0, "vollständig"],
-            ["Egweil", 1247, 0, 0, 0, 0, 0, 0, 0, "vollständig"],
-            ["Eichstätt (Stadt)", 14066, 78, 3, 10, 4, 14, 7, 1, "vollständig"],
-            ["Eitensheim", 3030, 5, 1, 0, 1, 2, 0, 0, "vollständig"],
-            ["Gaimersheim", 12526, 17, 1, 3, 2, 4, 5, 0, "vollständig"],
-            ["Großmehring", 7498, 3, 1, 0, 1, 0, 1, 0, "vollständig"],
-            ["Hepberg", 3077, 1, 1, 0, 0, 2, 0, 0, "vollständig"],
-            ["Hitzhofen", 3022, 0, 0, 0, 0, 0, 0, 0, "vollständig"],
-            ["Kinding", 2600, 0, 0, 0, 0, 1, 0, 0, "vollständig"],
-            ["Kipfenberg", 5835, 3, 1, 2, 1, 6, 1, 1, "vollständig"],
-            ["Kösching", 9737, 54, 5, 1, 2, 4, 1, 1, "vollständig"],
-            ["Lenting", 4980, 5, 0, 2, 1, 2, 0, 0, "vollständig"],
-            ["Mindelstetten", 1822, 2, 0, 0, 0, 0, 0, 0, "vollständig"],
-            ["Mörnsheim", 1523, 0, 0, 0, 0, 1, 0, 0, "vollständig"],
-            ["Nassenfels", 2351, 0, 0, 0, 1, 0, 0, 0, "vollständig"],
-            ["Oberdolling", 1371, 0, 0, 0, 0, 0, 0, 0, "vollständig"],
-            ["Pförring", 4100, 1, 0, 1, 1, 0, 1, 0, "vollständig"],
-            ["Pollenfeld", 3051, 1, 1, 0, 0, 1, 0, 0, "vollständig"],
-            ["Schernfeld", 3285, 1, 0, 0, 0, 1, 0, 0, "vollständig"],
-            ["Stammham", 4159, 2, 2, 0, 0, 1, 0, 0, "vollständig"],
-            ["Titting", 2688, 1, 2, 0, 1, 1, 1, 0, "vollständig"],
-            ["Walting", 2289, 0, 0, 0, 0, 0, 0, 0, "vollständig"],
-            ["Wellheim", 2725, 4, 1, 1, 0, 0, 0, 0, "vollständig"],
-            ["Wettstetten", 5205, 8, 0, 1, 1, 1, 0, 0, "vollständig"]
+        df_over.columns = [
+            'Gemeinde', 'Einwohner', 'Aerztliche_Fachgebietseintraege', 'Psychotherapie',
+            'Zahnaerztliche_Personen', 'Oeffentliche_Apotheken', 'Heilmittelpraxen',
+            'Pflegeeinrichtungen_Dienste', 'Krankenhaus_Reha_Hospiz', 'Erhebungsstatus'
         ]
-        df_over = pd.DataFrame(raw_over, columns=OVERVIEW_COLS)
-        df_det = df_over.copy()
-        # Add basic dummy detailed columns if fallback used
-        for col in DETAILED_COLS:
-            if col not in df_det.columns:
-                df_det[col] = 0
+        df_over = df_over[df_over['Gemeinde'].notna() & (~df_over['Gemeinde'].astype(str).str.contains('Gesamt'))]
 
+        df_det = pd.read_excel(XLSX_FILENAME, sheet_name="Detailmatrix Gemeinden", header=3)
+        det_cols = [
+            'Gemeinde', 'Einwohner', 'Flaeche_km2', 'Einwohner_je_km2', 'Gemeindeart', 'Verwaltungsgemeinschaft',
+            'Ortsteile', 'Rathaus', 'Website', 'Bearbeiter', 'Letzte_Pruefung', 'Erhebungsstatus',
+            'Allgemeinmedizin', 'Praktische_Aerzte', 'Innere_Medizin', 'Kinder_Jugendmedizin', 'Frauenheilkunde',
+            'HNO', 'Augenheilkunde', 'Hautkrankheiten', 'Orthopaedie', 'Chirurgie', 'Neurologie',
+            'Psychiatrie_Psychotherapie', 'Urologie', 'Anaesthesiologie', 'Radiologie', 'Weitere_Fachgebiete',
+            'Psychologische_Psychotherapie', 'Kinder_Jugendlichenpsychotherapie', 'Zahnaerzte', 'Kieferorthopaedie',
+            'Oeffentliche_Apotheken', 'Physiotherapie', 'Ergotherapie', 'Logopadie_Sprachtherapie', 'Podologie',
+            'Ernaehrungstherapie', 'Ambulante_Pflegedienste', 'Vollstationaere_Pflege', 'Tagespflege', 'Kurzzeitpflege',
+            'Krankenhausstandorte', 'Rehabilitationseinrichtungen', 'Stationaere_Hospize', 'Bemerkung',
+            'Summe_Aerztliche_Fachgebietseintraege', 'Summe_Psychotherapie', 'Summe_Zahnaerztliche_Personen',
+            'Zahnaerztliche_Personen', 'Summe_Heilmittelpraxen', 'Summe_Pflegeeinrichtungen_Dienste',
+            'Summe_Krankenhaus_Reha_Hospiz'
+        ]
+        df_det.columns = det_cols
+        df_det = df_det[df_det['Gemeinde'].notna() & (~df_det['Gemeinde'].astype(str).str.contains('Gesamt'))]
+    except Exception:
+        df_over = pd.read_csv(CSV_OVERVIEW_FILENAME)
+        df_det = pd.read_csv(CSV_DETAILED_FILENAME)
+        
     df_over = df_over.fillna("")
     df_det = df_det.fillna("")
     return df_over, df_det
 
-df_overview, df_detailed = load_data()
+try:
+    df_overview, df_detailed = load_data()
+except Exception as e:
+    st.error(f"""
+    🚨 **Fehler beim Laden der Daten!**  
+    Die Excel-Matrix `{XLSX_FILENAME}` wurde im Repository nicht gefunden.  
+    **Lösung:** Bitte stellt sicher, dass die Datei `{XLSX_FILENAME}` in Euer GitHub-Repository hochgeladen wurde.
+    """)
+    st.stop()
 
 # Custom Styling
 st.markdown("""
@@ -209,7 +146,7 @@ except Exception:
 st.sidebar.markdown("""
 ---
 ✉️ **Forschungsanfragen & Kontakt:**  
-_Bei Fragen zum Versorgungsatlas oder zur Datenmatrix kontaktieren Sie das Autorenteam direkt am Poster oder per E-Mail._
+_Bei Fragen zum Versorgungsatlas oder zur Datenmatrix kontaktieren Sie die Autorinnen direkt am Poster oder per E-Mail._
 """)
 
 # MAIN PAGE
@@ -244,10 +181,7 @@ with tab1:
         """, unsafe_allow_html=True)
         
     with col_sb2:
-        # Aggregated stats metrics
         def safe_sum(df, col):
-            if col not in df.columns:
-                return 0
             return int(pd.to_numeric(df[col], errors='coerce').fillna(0).sum())
 
         tot_einwohner = safe_sum(df_overview, "Einwohner")
@@ -271,7 +205,6 @@ with tab1:
         
     st.markdown("---")
     
-    # Regional / Landkreisweite Versorgungsstrukturen
     st.subheader("Landkreisweite, regionale und koordinierende Versorgungsstrukturen")
     st.markdown("_Gemäß Erfassungsmethodik werden gemeindeübergreifend koordinierte Strukturen auf Landkreisebene geführt:_")
     
@@ -292,7 +225,6 @@ with tab1:
     
     st.markdown("---")
     
-    # Interactive comparison chart
     st.subheader("Verteilungsanalyse der 30 Gemeinden")
     indicator_mapping = {
         "Ärztliche Fachgebietseinträge": "Aerztliche_Fachgebietseintraege",
@@ -330,10 +262,10 @@ with tab1:
 
     st.markdown("---")
 
-    # CLEAN BAYERN BENCHMARK GRAPHIC (APOTHEKEN & HAUSÄRZTE)
-    st.subheader("📍 Regionaler Benchmark-Vergleich (Landkreis Eichstätt vs. Bayern)")
+    # CLEAN BAYERN BENCHMARK GRAPHIC & SOURCES (UNIFORM LEVEL: BAYERN / PRIMARY CARE)
+    st.subheader("📍 Regionaler Benchmark-Vergleich der Primärversorgung (Landkreis Eichstätt vs. Bayern)")
     st.markdown("""
-    _Methode: Gegenüberstellung der zentralen Primärversorgungsbereiche (Öffentliche Apotheken und Hausärztliche Versorgung) im Landkreis Eichstätt im direkten Vergleich zum **Landesdurchschnitt Bayern**._
+    _Methode: Um eine methodisch saubere Gegenüberstellung ohne Durchmischung von Bundes- und Landesebene zu gewährleisten, werden die Erfassungswerte der Primärversorgung im Landkreis Eichstätt einheitlich dem **Landesdurchschnitt Bayern** gegenübergestellt._
     """)
 
     benchmark_df = pd.DataFrame([
@@ -356,9 +288,9 @@ with tab1:
 
     st.caption("""
     📌 **Quellen und Stichtagsnachweis der Referenzdaten:**
-    * **Einwohnerzahl Stichtag:** 31.12.2025 (Bayerisches Landesamt für Statistik).
-    * **Öffentliche Apotheken:** Bayerische Landesapothekerkammer (BLAK 2024 / ABDA 2025 / Destatis N034: 2.744 Apotheken in Bayern = 20,2 je 100k Einw.; Deutschland-Korridor 20,0 – 21,0).
-    * **Hausärztliche Versorgung:** Kassenärztliche Vereinigung Bayerns (KVB Versorgungsatlas Hausärzte, Personenzählung Allgemeinmedizin & Praktische Ärzte, Stand August 2026: 96 Hausärzt/innen im LK Eichstätt = 70,6 je 100k Einw. vs. Bayern = 72,8 je 100k Einw.).
+    * **Einwohnerzahl Stichtag:** 31.12.2025 (Bayerisches Landesamt für Statistik LfStat Bayern).
+    * **Öffentliche Apotheken:** Bayerische Landesapothekerkammer (BLAK 2024: 2.744 Apotheken in BY = 20,2 je 100k Einw.; ABDA Jahrbuch 2025: Korridor 20,0–21,0; Destatis N034).
+    * **Hausärztliche Versorgung:** Kassenärztliche Vereinigung Bayerns (KVB Versorgungsatlas Hausärzte, Stand August 2026: 3.471 Hausärzt/innen in Oberbayern = 72,8 je 100k Einw.).
     """)
 
 with tab2:
@@ -511,7 +443,7 @@ with tab3:
         Ziel ist es, die bestehenden medizinischen und pflegerischen Versorgungsstrukturen systematisch zu kartieren 
         und für Akteure der regionalen Gesundheitsförderung nutzbar zu machen.<br><br>
         <strong>Interprofessioneller Ansatz:</strong><br>
-        Die Erhebung ist in das Projektmodul <strong>\"{PROJEKTTITEL}\"</strong> eingebettet, 
+        Die Erhebung ist in das Projektmodul <strong>"{PROJEKTTITEL}"</strong> eingebettet, 
         das aufzeigt, wie die verschiedenen Sektoren der Gesundheits- und Soziallandschaft (Ärzte, Zahnärzte, Heilmittelerbringer, Pflege- und Beratungsstrukturen) 
         integriert zusammenwirken können, um eine lückenlose Versorgung zu gewährleisten.<br><br>
         <em>Bearbeitung: {PROJEKTTEILNEHMER}</em>
