@@ -176,7 +176,7 @@ with tab1:
                 <tr><td style="padding:6px 0;"><strong>Landkreisebene:</strong></td><td>Überregionale Versorgung</td></tr>
             </table>
         </div>
-        """, unsafe_allowed_html=True)
+        """, unsafe_allow_html=True)
         
     with col_sb2:
         # Aggregated stats metrics
@@ -208,7 +208,7 @@ with tab1:
             • <strong>Apothekendichte:</strong> 2.744 Apotheken in Bayern (ca. 21 je 100k Einw.) (<em>Quelle: BLAK / ABDA</em>)
             </span>
         </div>
-        """, unsafe_allowed_html=True)
+        """, unsafe_allow_html=True)
         
     st.markdown("---")
     
@@ -291,7 +291,7 @@ with tab2:
             📅 <strong>Letzte Prüfung:</strong> {g_det['Letzte_Pruefung']}<br>
             ✅ <strong>Erhebungsstatus:</strong> <span class="badge-status">{g_det['Erhebungsstatus']}</span>
         </div>
-        """, unsafe_allowed_html=True)
+        """, unsafe_allow_html=True)
         
         st.markdown("#### Ortsteile / Gemeindeteile")
         st.info(g_det['Ortsteile'])
@@ -405,7 +405,7 @@ with tab3:
         integriert zusammenwirken können, um eine lückenlose Versorgung zu gewährleisten.<br><br>
         <em>Bearbeitung: {PROJEKTTEILNEHMER}</em>
     </div>
-    """, unsafe_allowed_html=True)
+    """, unsafe_allow_html=True)
     
     st.markdown("""
     Dieses interaktive System basiert auf dem offiziellen **Recherchemanual und methodischen Regelbuch des Versorgungsatlasses des Landkreises Eichstätt**.
