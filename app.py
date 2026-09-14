@@ -9,7 +9,7 @@ import numpy as np
 UNI_NAME = "Katholischen Stiftungshochschule München"                                      # Name Eurer Universität/Hochschule
 STUDIENGANG = "Angewandte Versorgungsforschung"         # Euer Studiengang
 SEMESTER = "Sommersemester 2026"                        # Das aktuelle Semester
-PROJEKTTITEL = """Quartiersmanagment aus interprofessioneller Perspektive: Versorgungsformen und -strukturen von Stadt und Landkreis Eichstätt - eine explorative Mixed-Methods-Studie"""
+PROJEKTTITEL = "Quartiersmanagement aus interprofessioneller Perspektive: Versorgungsformen und -strukturen von Stadt und Landkreis Eichstätt - eine explorative Mixed-Methods-Studie"
 PROJEKTTEILNEHMER = "Christina Papacek-Zimmermann B.Sc., Jennifer Zimmermann B.Sc."          # Eure Namen für die Bearbeitung
 
 # DATEINAMEN DER DATEN-DATEIEN
@@ -26,19 +26,47 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Load data helper - Reads directly from the Excel Matrix with positional safety
+# Load data helper - Reads directly from the Excel Matrix with robust positional mapping!
 @st.cache_data
 def load_data():
     try:
-        df_over = pd.read_excel(XLSX_FILENAME, sheet_name="Gemeindeübersicht", header=3)
+        # 1. Overview sheet
+        raw_over = pd.read_excel(XLSX_FILENAME, sheet_name="Gemeindeübersicht", header=None)
+        # Find header row containing "Gemeinde"
+        header_idx = None
+        for idx, row in raw_over.iterrows():
+            row_str = [str(val).strip() for val in row.values]
+            if "Gemeinde" in row_str and "Einwohner" in row_str:
+                header_idx = idx
+                break
+        
+        if header_idx is not None:
+            df_over = pd.read_excel(XLSX_FILENAME, sheet_name="Gemeindeübersicht", skiprows=header_idx+1, header=None)
+        else:
+            df_over = pd.read_excel(XLSX_FILENAME, sheet_name="Gemeindeübersicht", skiprows=4, header=None)
+            
+        df_over = df_over.iloc[:, :10]
         df_over.columns = [
             'Gemeinde', 'Einwohner', 'Aerztliche_Fachgebietseintraege', 'Psychotherapie',
             'Zahnaerztliche_Personen', 'Oeffentliche_Apotheken', 'Heilmittelpraxen',
             'Pflegeeinrichtungen_Dienste', 'Krankenhaus_Reha_Hospiz', 'Erhebungsstatus'
         ]
-        df_over = df_over[df_over['Gemeinde'].notna() & (~df_over['Gemeinde'].astype(str).str.contains('Gesamt'))]
-
-        df_det = pd.read_excel(XLSX_FILENAME, sheet_name="Detailmatrix Gemeinden", header=3)
+        df_over = df_over[df_over['Gemeinde'].notna() & (~df_over['Gemeinde'].astype(str).str.contains('Gesamt|Kennzahlen', case=False, na=False))]
+        
+        # 2. Detailed sheet
+        raw_det = pd.read_excel(XLSX_FILENAME, sheet_name="Detailmatrix Gemeinden", header=None)
+        header_det_idx = None
+        for idx, row in raw_det.iterrows():
+            row_str = [str(val).strip() for val in row.values]
+            if "Gemeinde" in row_str and "Einwohner" in row_str:
+                header_det_idx = idx
+                break
+                
+        if header_det_idx is not None:
+            df_det = pd.read_excel(XLSX_FILENAME, sheet_name="Detailmatrix Gemeinden", skiprows=header_det_idx+1, header=None)
+        else:
+            df_det = pd.read_excel(XLSX_FILENAME, sheet_name="Detailmatrix Gemeinden", skiprows=4, header=None)
+            
         det_cols = [
             'Gemeinde', 'Einwohner', 'Flaeche_km2', 'Einwohner_je_km2', 'Gemeindeart', 'Verwaltungsgemeinschaft',
             'Ortsteile', 'Rathaus', 'Website', 'Bearbeiter', 'Letzte_Pruefung', 'Erhebungsstatus',
@@ -50,12 +78,15 @@ def load_data():
             'Ernaehrungstherapie', 'Ambulante_Pflegedienste', 'Vollstationaere_Pflege', 'Tagespflege', 'Kurzzeitpflege',
             'Krankenhausstandorte', 'Rehabilitationseinrichtungen', 'Stationaere_Hospize', 'Bemerkung',
             'Summe_Aerztliche_Fachgebietseintraege', 'Summe_Psychotherapie', 'Summe_Zahnaerztliche_Personen',
-            'Zahnaerztliche_Personen', 'Summe_Heilmittelpraxen', 'Summe_Pflegeeinrichtungen_Dienste',
+            'Zahnaerztliche_Personen_Duplicate', 'Summe_Heilmittelpraxen', 'Summe_Pflegeeinrichtungen_Dienste',
             'Summe_Krankenhaus_Reha_Hospiz'
         ]
-        df_det.columns = det_cols
-        df_det = df_det[df_det['Gemeinde'].notna() & (~df_det['Gemeinde'].astype(str).str.contains('Gesamt'))]
+        df_det = df_det.iloc[:, :len(det_cols)]
+        df_det.columns = det_cols[:df_det.shape[1]]
+        df_det = df_det[df_det['Gemeinde'].notna() & (~df_det['Gemeinde'].astype(str).str.contains('Gesamt|Kennzahlen', case=False, na=False))]
+
     except Exception:
+        # Fallback to CSV files
         df_over = pd.read_csv(CSV_OVERVIEW_FILENAME)
         df_det = pd.read_csv(CSV_DETAILED_FILENAME)
         
@@ -96,7 +127,7 @@ st.markdown("""
         font-size: 12px;
     }
     </style>
-""", unsafe_allow_html=True)
+""", unsafe_allowed_html=True)
 
 # SIDEBAR: Context & Info
 st.sidebar.image("https://img.icons8.com/clouds/150/hospital-room.png", width=100)
@@ -106,14 +137,14 @@ st.sidebar.markdown("**Landkreis Eichstätt (Oberbayern)**")
 # Studentisches Infofeld in der Sidebar
 st.sidebar.markdown(f"""
 <div style="background-color:#F5F3FF; padding:12px; border-radius:5px; border-left:4px solid #7C3AED; margin-bottom:15px; font-size: 13px;">
-    <strong>🎓 Studentisches Projekt:</strong><br>
+    <strong>🎓 Studentisches Lehrprojekt:</strong><br>
     Erstellt im Rahmen des Masterstudiengangs <strong>{STUDIENGANG}</strong> ({SEMESTER}) an der <strong>{UNI_NAME}</strong>.<br><br>
     <strong>Projekttitel:</strong><br>
     <em>{PROJEKTTITEL}</em><br><br>
     <strong>Bearbeitung:</strong><br>
     {PROJEKTTEILNEHMER}
 </div>
-""", unsafe_allow_html=True)
+""", unsafe_allowed_html=True)
 
 # Structure Box with Exact Stichtag
 st.sidebar.markdown("""
@@ -126,7 +157,7 @@ st.sidebar.markdown("""
     📐 <strong>Bevölkerungsdichte:</strong> 112,0 Einw./km²<br>
     🏡 <strong>Gemeinden:</strong> 30
 </div>
-""", unsafe_allow_html=True)
+""", unsafe_allowed_html=True)
 
 # SINGLE EXCEL DOWNLOAD BUTTON
 st.sidebar.subheader("📥 Daten-Download")
@@ -145,16 +176,16 @@ except Exception:
 
 st.sidebar.markdown("""
 ---
-✉️ **Forschungsanfragen & Kontakt:**  
-_Bei Fragen zum Versorgungsatlas oder zur Datenmatrix kontaktieren Sie die Autorinnen direkt am Poster oder per E-Mail._
+✉️ **Forschungsanfragen / Original-Datensatz:**  
+_Kontaktieren Sie das Autorenteam direkt am Poster oder per E-Mail._
 """)
 
 # MAIN PAGE
-st.markdown('<div class="main-title">Gesundheits- & Versorgungsatlas</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">Interaktives Informationssystem zur medizinischen und pflegerischen Infrastruktur im Landkreis Eichstätt</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-title">Gesundheits- & Versorgungsatlas</div>', unsafe_allowed_html=True)
+st.markdown('<div class="subtitle">Interaktives Informationssystem zur medizinischen und pflegerischen Infrastruktur im Landkreis Eichstätt</div>', unsafe_allowed_html=True)
 
 # Tabs
-tab1, tab2, tab3 = st.tabs(["📊 Dashboard & Landkreis-Steckbrief", "🔍 Gemeinde-Steckbriefe (Detailansicht)", "📘 Recherchemanual & Methodik"])
+tab1, tab2, tab3 = st.tabs(["📊 Dashboard & Regionalvergleich", "🔍 Gemeinde-Steckbriefe (Detailansicht)", "📘 Recherchemanual & Methodik"])
 
 with tab1:
     st.header("Landkreis-Steckbrief & Regionaler Überblick")
@@ -181,6 +212,7 @@ with tab1:
         """, unsafe_allow_html=True)
         
     with col_sb2:
+        # Aggregated stats metrics
         def safe_sum(df, col):
             return int(pd.to_numeric(df[col], errors='coerce').fillna(0).sum())
 
@@ -205,8 +237,9 @@ with tab1:
         
     st.markdown("---")
     
+    # Regional / Landkreisweite Versorgungsstrukturen
     st.subheader("Landkreisweite, regionale und koordinierende Versorgungsstrukturen")
-    st.markdown("_Gemäß Erfassungsmethodik werden gemeindeübergreifend koordinierte Strukturen auf Landkreisebene geführt:_")
+    st.markdown("_Gemeindeübergreifend koordinierte Strukturen auf Landkreisebene:_")
     
     landkreis_table = pd.DataFrame([
         {"Versorgungsbereich": "Öffentlicher Gesundheitsdienst", "Akteur / Angebot": "Gesundheitsamt Eichstätt", "Standort / Träger": "Landratsamt Eichstätt", "Funktion / Versorgungsform": "Öffentlicher Gesundheitsdienst", "Räumlicher Bezug": "Landkreisweit", "Standardquelle": "Website Gesundheitsamt Eichstätt"},
@@ -225,6 +258,7 @@ with tab1:
     
     st.markdown("---")
     
+    # Interactive comparison chart
     st.subheader("Verteilungsanalyse der 30 Gemeinden")
     indicator_mapping = {
         "Ärztliche Fachgebietseinträge": "Aerztliche_Fachgebietseintraege",
@@ -262,10 +296,10 @@ with tab1:
 
     st.markdown("---")
 
-    # CLEAN BAYERN BENCHMARK GRAPHIC & SOURCES (UNIFORM LEVEL: BAYERN / PRIMARY CARE)
-    st.subheader("📍 Regionaler Benchmark-Vergleich der Primärversorgung (Landkreis Eichstätt vs. Bayern)")
+    # CLEAN BAYERN BENCHMARK GRAPHIC & DETAILED SOURCES
+    st.subheader("📍 Regionaler Benchmark-Vergleich (Landkreis Eichstätt vs. Bayern)")
     st.markdown("""
-    _Methode: Um eine methodisch saubere Gegenüberstellung ohne Durchmischung von Bundes- und Landesebene zu gewährleisten, werden die Erfassungswerte der Primärversorgung im Landkreis Eichstätt einheitlich dem **Landesdurchschnitt Bayern** gegenübergestellt._
+    _Methode: Um eine methodisch saubere Gegenüberstellung ohne Durchmischung von Bundes- und Landesebene zu gewährleisten, werden die Erfassungswerte des Landkreises Eichstätt für die Primärversorgung einheitlich dem **Landesdurchschnitt Bayern** gegenübergestellt._
     """)
 
     benchmark_df = pd.DataFrame([
@@ -287,10 +321,11 @@ with tab1:
     st.plotly_chart(fig_bench, use_container_width=True)
 
     st.caption("""
-    📌 **Quellen und Stichtagsnachweis der Referenzdaten:**
-    * **Einwohnerzahl Stichtag:** 31.12.2025 (Bayerisches Landesamt für Statistik LfStat Bayern).
-    * **Öffentliche Apotheken:** Bayerische Landesapothekerkammer (BLAK 2024: 2.744 Apotheken in BY = 20,2 je 100k Einw.; ABDA Jahrbuch 2025: Korridor 20,0–21,0; Destatis N034).
-    * **Hausärztliche Versorgung:** Kassenärztliche Vereinigung Bayerns (KVB Versorgungsatlas Hausärzte, Stand August 2026: 3.471 Hausärzt/innen in Oberbayern = 72,8 je 100k Einw.).
+    📌 **Quellen- und Stichtagsnachweis der Referenzdaten:**
+    * **Bayerisches Landesamt für Statistik (LfStat Bayern):** Einwohnerzahlen Stichtag 31.12.2025. Homepage: [www.statistik.bayern.de](https://www.statistik.bayern.de/) (abgerufen am 13.09.2026).
+    * **Statistisches Bundesamt (Destatis):** Apothekendichte & Kennzahlen zur Arzneimittelversorgung (Pressemitteilung 2024). Homepage: [www.destatis.de](https://www.destatis.de/) (abgerufen am 13.09.2026).
+    * **Bayerische Landesapothekerkammer (BLAK) / ABDA:** Öffentliche Apotheken in Bayern (Stand 2024/2025: 2.744 Standorte = 20,2 je 100k Einw.). Homepages: [www.blak.de](https://www.blak.de/) & [www.abda.de](https://www.abda.de/) (abgerufen am 13.09.2026).
+    * **Kassenärztliche Vereinigung Bayerns (KVB Versorgungsatlas Hausärzte):** Hausärztliche Versorgungsdichte (Stand August 2026: 72,8 Hausärzt/innen je 100k Einw.). Homepage: [www.kvb.de/ueber-uns/versorgungsatlas/](https://www.kvb.de/ueber-uns/versorgungsatlas/) (abgerufen am 13.09.2026).
     """)
 
 with tab2:
@@ -327,7 +362,7 @@ with tab2:
             📅 <strong>Letzte Prüfung:</strong> {clean_val(g_det['Letzte_Pruefung'])}<br>
             ✅ <strong>Erhebungsstatus:</strong> <span class="badge-status">{clean_val(g_det['Erhebungsstatus'])}</span>
         </div>
-        """, unsafe_allow_html=True)
+        """, unsafe_allowed_html=True)
         
         st.markdown("#### Ortsteile / Gemeindeteile")
         st.info(clean_val(g_det['Ortsteile']))
@@ -446,9 +481,9 @@ with tab3:
         Die Erhebung ist in das Projektmodul <strong>"{PROJEKTTITEL}"</strong> eingebettet, 
         das aufzeigt, wie die verschiedenen Sektoren der Gesundheits- und Soziallandschaft (Ärzte, Zahnärzte, Heilmittelerbringer, Pflege- und Beratungsstrukturen) 
         integriert zusammenwirken können, um eine lückenlose Versorgung zu gewährleisten.<br><br>
-        <em>Bearbeitung: {PROJEKTTEILNEHMER}</em>
+        <em>Bearbeiter/in: {PROJEKTTEILNEHMER}</em>
     </div>
-    """, unsafe_allow_html=True)
+    """, unsafe_allowed_html=True)
     
     st.markdown("""
     Dieses interaktive System basiert auf dem offiziellen **Recherchemanual und methodischen Regelbuch des Versorgungsatlasses des Landkreises Eichstätt**.
@@ -472,9 +507,9 @@ with tab3:
         st.subheader("2. Methodische Abgrenzung & Logik des Rettungsdienstes")
         st.markdown("""
         *   **Regionale / Landkreisweite Versorgung:** Rettungsdienststrukturen (**Rettungswachen, Notarztstandorte, Integrierte Leitstelle**) werden logischerweise **nicht** einzelnen Gemeinden zugeordnet, da dies zu Fehlinterpretationen führen würde. Rettungsdienstbereiche werden durch den *Zweckverband für Rettungsdienst und Feuerwehralarmierung (ZRF) Region Ingolstadt* überregional geplant und gesteuert. Sie sind daher als gemeindeübergreifende Angebote auf Landkreisebene angesiedelt.
-        *   **Limitation der Datenvalidität (Opt-In-Verfahren):** Quantitative Daten aus offiziellen Suchverzeichnissen weichen teilweise von der realen Vor-Ort-Versorgung ab. Das liegt am datenschutzrechtlichen Opt-In-Verfahren, bei dem die Veröffentlichung in Verbraucher-Suchmasken auf freiwilliger Einwilligung basiert (Underreporting). Zur methodischen Konsistenz wird im Datensatz dennoch strikt der offizielle Registerwert geführt, Abweichungen werden in den Bemerkungen transparent gemacht.
+        *   **Limitation der Datenvalidität (Opt-In-Verfahren):** Quantitative Daten aus offiziellen Suchverzeichnissen weichen teilweise von der realen Vor-Ort-Versorgung ab. Das liegt am datenschutzrechtlichen Opt-In-Verfahren, bei dem die Veröffentlichung in Verbraucher-Suchmasken auf freiwilliger Einwilligung basiert (Underreporting). Zur methodischen Konsistency wird im Datensatz dennoch strikt der offizielle Registerwert geführt, Abweichungen werden in den Bemerkungen transparent gemacht.
         *   **Deskriptive Bestandsaufnahme:** Der Atlas untersucht ausschließlich das *Vorhandensein* (Bestand) von Strukturen und ist keine Bedarfsplanung (keine Bedarfsdeckungs- oder Erreichbarkeitsanalyse).
         """)
 
 st.markdown("---")
-st.markdown("<div style='text-align: center; color: gray; font-size: 12px;'>Kommunaler Gesundheits- und Versorgungsatlas Landkreis Eichstätt | Erstellt für ein wissenschaftliches Poster | © 2026 Open Science Project</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: center; color: gray; font-size: 12px;'>Kommunaler Gesundheits- und Versorgungsatlas Landkreis Eichstätt | Erstellt für ein wissenschaftliches Poster | © 2026 Open Science Project</div>", unsafe_allowed_html=True)
