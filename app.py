@@ -26,69 +26,32 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Load data helper - Reads directly from the Excel Matrix!
+# Load data helper - Reads directly from the Excel Matrix with index-based sheets & positional columns
 @st.cache_data
 def load_data():
     try:
-        excel_file = pd.ExcelFile(XLSX_FILENAME)
+        # Primary: Read directly from Excel file by sheet index (sheet 1: Gemeindeübersicht, sheet 2: Detailmatrix)
+        df_over = pd.read_excel(XLSX_FILENAME, sheet_name=1, header=3)
+        df_over = df_over[df_over.iloc[:, 0].notna() & (~df_over.iloc[:, 0].astype(str).str.contains('Gesamt'))]
+        if df_over.shape[1] >= 10:
+            df_over.columns = [
+                'Gemeinde', 'Einwohner', 'Aerztliche_Fachgebietseintraege',
+                'Psychotherapie', 'Zahnaerztliche_Personen', 'Oeffentliche_Apotheken',
+                'Heilmittelpraxen', 'Pflegeeinrichtungen_Dienste', 'Krankenhaus_Reha_Hospiz',
+                'Erhebungsstatus'
+            ] + list(df_over.columns[10:])
         
-        # Read overview sheet
-        df_over_raw = excel_file.parse("Gemeindeübersicht", header=None)
-        header_idx = None
-        for i in range(min(10, len(df_over_raw))):
-            row_str = df_over_raw.iloc[i].astype(str).str.lower().tolist()
-            if any('gemeinde' in cell for cell in row_str):
-                header_idx = i
-                break
-        if header_idx is None:
-            header_idx = 3
-            
-        df_over = excel_file.parse("Gemeindeübersicht", header=header_idx)
-        df_over = df_over[df_over.iloc[:, 0].notna() & (~df_over.iloc[:, 0].astype(str).str.contains('Gesamt', case=False, na=False))].copy()
-        
-        standard_over_cols = [
-            'Gemeinde', 'Einwohner', 'Aerztliche_Fachgebietseintraege', 'Psychotherapie',
-            'Zahnaerztliche_Personen', 'Oeffentliche_Apotheken', 'Heilmittelpraxen',
-            'Pflegeeinrichtungen_Dienste', 'Krankenhaus_Reha_Hospiz', 'Erhebungsstatus'
-        ]
-        if len(df_over.columns) >= len(standard_over_cols):
-            df_over.columns = standard_over_cols + list(df_over.columns[len(standard_over_cols):])
-            
-        # Read detailed sheet
-        df_det_raw = excel_file.parse("Detailmatrix Gemeinden", header=None)
-        det_header_idx = None
-        for i in range(min(10, len(df_det_raw))):
-            row_str = df_det_raw.iloc[i].astype(str).str.lower().tolist()
-            if any('gemeinde' in cell for cell in row_str):
-                det_header_idx = i
-                break
-        if det_header_idx is None:
-            det_header_idx = 3
-            
-        df_det = excel_file.parse("Detailmatrix Gemeinden", header=det_header_idx)
-        df_det = df_det[df_det.iloc[:, 0].notna() & (~df_det.iloc[:, 0].astype(str).str.contains('Gesamt', case=False, na=False))].copy()
-        
-        standard_det_cols = [
-            'Gemeinde', 'Einwohner', 'Flaeche_km2', 'Einwohner_je_km2', 'Gemeindeart', 'Verwaltungsgemeinschaft',
-            'Ortsteile', 'Rathaus', 'Website', 'Bearbeiter', 'Letzte_Pruefung', 'Erhebungsstatus',
-            'Allgemeinmedizin', 'Praktische_Aerzte', 'Innere_Medizin', 'Kinder_Jugendmedizin',
-            'Frauenheilkunde', 'HNO', 'Augenheilkunde', 'Hautkrankheiten', 'Orthopaedie',
-            'Chirurgie', 'Neurologie', 'Psychiatrie_Psychotherapie', 'Urologie', 'Anaesthesiologie',
-            'Radiologie', 'Weitere_Fachgebiete', 'Psychologische_Psychotherapie', 'Kinder_Jugendlichenpsychotherapie',
-            'Zahnaerzte', 'Kieferorthopaedie', 'Oeffentliche_Apotheken', 'Physiotherapie', 'Ergotherapie',
-            'Logopadie_Sprachtherapie', 'Podologie', 'Ernaehrungstherapie', 'Ambulante_Pflegedienste',
-            'Vollstationaere_Pflege', 'Tagespflege', 'Kurzzeitpflege', 'Krankenhausstandorte',
-            'Rehabilitationseinrichtungen', 'Stationaere_Hospize', 'Bemerkung',
-            'Summe_Aerztliche_Fachgebietseintraege', 'Summe_Psychotherapie', 'Summe_Zahnaerztliche_Personen',
-            'Zahnaerztliche_Personen_Alias', 'Summe_Heilmittelpraxen', 'Summe_Pflegeeinrichtungen_Dienste',
-            'Summe_Krankenhaus_Reha_Hospiz'
-        ]
-        if len(df_det.columns) >= len(standard_det_cols):
-            df_det.columns = standard_det_cols + list(df_det.columns[len(standard_det_cols):])
-            
-    except Exception:
-        df_over = pd.read_csv(CSV_OVERVIEW_FILENAME)
-        df_det = pd.read_csv(CSV_DETAILED_FILENAME)
+        df_det = pd.read_excel(XLSX_FILENAME, sheet_name=2, header=3)
+        df_det = df_det[df_det.iloc[:, 0].notna() & (~df_det.iloc[:, 0].astype(str).str.contains('Gesamt'))]
+        if df_det.shape[1] >= 12:
+            df_det.rename(columns={df_det.columns[0]: 'Gemeinde', df_det.columns[1]: 'Einwohner'}, inplace=True)
+    except Exception as e_excel:
+        # Fallback to CSVs if Excel file fails or is missing
+        try:
+            df_over = pd.read_csv(CSV_OVERVIEW_FILENAME)
+            df_det = pd.read_csv(CSV_DETAILED_FILENAME)
+        except Exception as e_csv:
+            raise RuntimeError(f"Excel-Fehler: {e_excel} | CSV-Fehler: {e_csv}")
         
     df_over = df_over.fillna("")
     df_det = df_det.fillna("")
@@ -99,9 +62,10 @@ try:
 except Exception as e:
     st.error(f"""
     🚨 **Fehler beim Laden der Daten!**  
-    Die Excel-Matrix `{XLSX_FILENAME}` wurde im Repository nicht gefunden.  
-    **Lösung:** Bitte stellt sicher, dass die Datei `{XLSX_FILENAME}` in Euer GitHub-Repository hochgeladen wurde.
+    Beim Verarbeiten der Daten-Datei `{XLSX_FILENAME}` ist ein Fehler aufgetreten.  
+    **Details:** `{e}`
     """)
+    st.info("💡 **Tipp:** Stellen Sie sicher, dass `openpyxl` in der `requirements.txt` steht und die Datei `{XLSX_FILENAME}` im Hauptverzeichnis Ihres GitHub-Repositories hochgeladen wurde.")
     st.stop()
 
 # Custom Styling
@@ -212,6 +176,7 @@ with tab1:
         """, unsafe_allow_html=True)
         
     with col_sb2:
+        # Aggregated stats metrics
         def safe_sum(df, col):
             return int(pd.to_numeric(df[col], errors='coerce').fillna(0).sum())
 
@@ -295,10 +260,10 @@ with tab1:
 
     st.markdown("---")
 
-    # CLEAN BAYERN BENCHMARK GRAPHIC FOR PRIMARY CARE (APOTHEKEN & HAUSÄRZTE)
-    st.subheader("📍 Regionaler Benchmark-Vergleich der Primärversorgung (Landkreis Eichstätt vs. Bayern)")
+    # CLEAN BAYERN BENCHMARK GRAPHIC & SOURCES (APOTHEKEN & HAUSÄRZTE)
+    st.subheader("📍 Regionaler Benchmark-Vergleich (Landkreis Eichstätt vs. Bayern)")
     st.markdown("""
-    _Methode: Gegenüberstellung der beiden Schlüsselindikatoren der ambulanten Primärversorgung (Öffentliche Apotheken und Hausärzte) im Landkreis Eichstätt im Vergleich zum Landesdurchschnitt Bayern._
+    _Methode: Um eine methodisch saubere Gegenüberstellung ohne Durchmischung von Bundes- und Landesebene zu gewährleisten, werden die Erfassungswerte des Landkreises Eichstätt einheitlich dem **Landesdurchschnitt Bayern** gegenübergestellt._
     """)
 
     benchmark_df = pd.DataFrame([
@@ -321,9 +286,10 @@ with tab1:
 
     st.caption("""
     📌 **Quellen und Stichtagsnachweis der Referenzdaten:**
-    * **Einwohnerzahl Stichtag:** 31.12.2025 ([Bayerisches Landesamt für Statistik](https://www.statistik.bayern.de/), abgerufen am 13.09.2026).
-    * **Öffentliche Apotheken:** Bayerische Landesapothekerkammer ([BLAK](https://www.blak.de/), Stand 2024/2025: 2.744 Apotheken in Bayern = 20,2 je 100k Einw.) & Bundesvereinigung Deutscher Apothekerverbände ([ABDA](https://www.abda.de/), abgerufen am 13.09.2026) sowie Statistisches Bundesamt ([Destatis Pressemitteilung 2024](https://www.destatis.de/), abgerufen am 13.09.2026).
-    * **Hausärztliche Versorgung:** Kassenärztliche Vereinigung Bayerns ([KVB Versorgungsatlas Hausärzte](https://www.kvb.de/ueber-uns/versorgungsatlas/), Stand August 2026: 72,8 Hausärzt/innen je 100k Einw., abgerufen am 13.09.2026).
+    * **Einwohnerzahl Stichtag:** 31.12.2025 – Bayerisches Landesamt für Statistik (LfStat Bayern). Homepage: [www.statistik.bayern.de](https://www.statistik.bayern.de/) *(abgerufen am 13.09.2026)*.
+    * **Statistisches Bundesamt (Destatis):** Apothekendichte & Arzneimittelversorgung (Pressemitteilung 2024). Homepage: [www.destatis.de](https://www.destatis.de/) *(abgerufen am 13.09.2026)*.
+    * **Öffentliche Apotheken:** Bayerische Landesapothekerkammer (BLAK) & ABDA (Stand 2024/2025: 2.744 Apotheken in Bayern = 20,2 je 100k Einw.). Homepages: [www.blak.de](https://www.blak.de/) & [www.abda.de](https://www.abda.de/) *(abgerufen am 13.09.2026)*.
+    * **Hausärztliche Versorgung:** Kassenärztliche Vereinigung Bayerns (KVB Versorgungsatlas Hausärzte, Stand August 2026: 72,8 Hausärzt/innen je 100k Einw.). Homepage: [www.kvb.de/ueber-uns/versorgungsatlas/](https://www.kvb.de/ueber-uns/versorgungsatlas/) *(abgerufen am 13.09.2026)*.
     """)
 
 with tab2:
