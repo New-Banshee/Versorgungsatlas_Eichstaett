@@ -6,7 +6,7 @@ import os
 # ==============================================================================
 # 🎓 KONFIGURATION / PERSONALISIERUNG
 # ==============================================================================
-UNI_NAME = "Katholische Stiftungshochschule München"                                      # Name der Universität/Hochschule
+UNI_NAME = "Katholischen Stiftungshochschule München"                                      # Name der Universität/Hochschule
 STUDIENGANG = "Angewandte Versorgungsforschung"         # Studiengang
 SEMESTER = "Sommersemester 2026"                        # Aktuelles Semester
 PROJEKTTITEL = "Quartiersmanagement aus interprofessioneller Perspektive: Versorgungsformen und -strukturen von Stadt und Landkreis Eichstätt - eine explorative Mixed-Methods-Studie"
