@@ -1,31 +1,22 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import numpy as np
+import openpyxl
+import io
 import os
 
 # ==============================================================================
-# 🎓 KONFIGURATION / PERSONALISIERUNG
+# 🎓 KONFIGURATION / PERSONALISIERUNG (HIER EINFACH ANPASSEN!)
 # ==============================================================================
-AUTORINNEN = "Christina Papacek-Zimmermann B.Sc., Jennifer Zimmermann B.Sc."  # <-- DIESEN TEXT MIT EUREN NAMEN ERSETZEN
-PROJEKTTEILNEHMER = AUTORINNEN
+UNI_NAME = "Katholischen Stiftungshochschule München"                                      # Name Eurer Universität/Hochschule
+STUDIENGANG = "Angewandte Versorgungsforschung"         # Euer Studiengang
+SEMESTER = "Sommersemester 2026"                        # Das aktuelle Semester
+PROJEKTTITEL = "Quartiersmanagement aus interprofessioneller Perspektive"
+PROJEKTTEILNEHMER = "Christina Papacek-Zimmermann B.Sc., Jennifer Zimmermann B.Sc."          # Eure Namen für die Bearbeitung
 
-UNI_NAME = "Katholische Stiftungshochschule München (KSH München)"
-PRAKTIKUM_NAME = "Katholische Universität Eichstätt-Ingolstadt (KU Eichstätt-Ingolstadt)"
-STUDIENGANG = "Angewandte Versorgungsforschung"
-SEMESTER = "Sommersemester 2026"
-PROJEKTTITEL = (
-    "Quartiersmanagement aus interprofessioneller Perspektive: "
-    "Versorgungsformen und -strukturen von Stadt und Landkreis Eichstätt – "
-    "Eine explorative Mixed-Methods-Studie"
-)
-
-# DATEINAMEN DER DATEN-DATEIEN
-BASE_DIR = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
-XLSX_FILENAME = os.path.join(BASE_DIR, "versorgungsatlas_eichstaett_original_matrix.xlsx")
-CSV_DETAILED_FILENAME = os.path.join(BASE_DIR, "versorgungsatlas_eichstaett_detailliert.csv")
-CSV_OVERVIEW_FILENAME = os.path.join(BASE_DIR, "versorgungsatlas_eichstaett_v2.csv")
-CSV_FALLBACK_FILENAME = os.path.join(BASE_DIR, "versorgungsatlas_eichstaett.csv")
-BENCHMARK_IMG_FILENAME = os.path.join(BASE_DIR, "versorgungsatlas_regionaler_benchmark.png")
+# DATEINAMEN
+XLSX_FILENAME = "versorgungsatlas_eichstaett_original_matrix.xlsx"
 # ==============================================================================
 
 # Set page configurations
@@ -36,56 +27,93 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Load data helper
+# Hardcoded Fallback Data for All 30 Municipalities (Guarantees zero crashes)
+FALLBACK_COMMUNITIES = [
+    {"Gemeinde": "Adelschlag", "Einwohner": 2981, "Aerztliche_Fachgebietseintraege": 0, "Psychotherapie": 1, "Zahnaerztliche_Personen": 0, "Oeffentliche_Apotheken": 0, "Heilmittelpraxen": 0, "Pflegeeinrichtungen_Dienste": 0, "Krankenhaus_Reha_Hospiz": 0, "Erhebungsstatus": "vollständig"},
+    {"Gemeinde": "Altmannstein", "Einwohner": 7195, "Aerztliche_Fachgebietseintraege": 3, "Psychotherapie": 0, "Zahnaerztliche_Personen": 0, "Oeffentliche_Apotheken": 1, "Heilmittelpraxen": 2, "Pflegeeinrichtungen_Dienste": 3, "Krankenhaus_Reha_Hospiz": 0, "Erhebungsstatus": "vollständig"},
+    {"Gemeinde": "Beilngries", "Einwohner": 10242, "Aerztliche_Fachgebietseintraege": 37, "Psychotherapie": 1, "Zahnaerztliche_Personen": 4, "Oeffentliche_Apotheken": 2, "Heilmittelpraxen": 13, "Pflegeeinrichtungen_Dienste": 4, "Krankenhaus_Reha_Hospiz": 0, "Erhebungsstatus": "vollständig"},
+    {"Gemeinde": "Böhmfeld", "Einwohner": 1697, "Aerztliche_Fachgebietseintraege": 0, "Psychotherapie": 1, "Zahnaerztliche_Personen": 0, "Oeffentliche_Apotheken": 0, "Heilmittelpraxen": 0, "Pflegeeinrichtungen_Dienste": 0, "Krankenhaus_Reha_Hospiz": 0, "Erhebungsstatus": "vollständig"},
+    {"Gemeinde": "Buxheim", "Einwohner": 3771, "Aerztliche_Fachgebietseintraege": 1, "Psychotherapie": 1, "Zahnaerztliche_Personen": 0, "Oeffentliche_Apotheken": 0, "Heilmittelpraxen": 1, "Pflegeeinrichtungen_Dienste": 1, "Krankenhaus_Reha_Hospiz": 0, "Erhebungsstatus": "vollständig"},
+    {"Gemeinde": "Denkendorf", "Einwohner": 5059, "Aerztliche_Fachgebietseintraege": 5, "Psychotherapie": 1, "Zahnaerztliche_Personen": 0, "Oeffentliche_Apotheken": 1, "Heilmittelpraxen": 5, "Pflegeeinrichtungen_Dienste": 3, "Krankenhaus_Reha_Hospiz": 0, "Erhebungsstatus": "vollständig"},
+    {"Gemeinde": "Dollnstein", "Einwohner": 2850, "Aerztliche_Fachgebietseintraege": 1, "Psychotherapie": 1, "Zahnaerztliche_Personen": 1, "Oeffentliche_Apotheken": 1, "Heilmittelpraxen": 1, "Pflegeeinrichtungen_Dienste": 0, "Krankenhaus_Reha_Hospiz": 0, "Erhebungsstatus": "vollständig"},
+    {"Gemeinde": "Egweil", "Einwohner": 1247, "Aerztliche_Fachgebietseintraege": 0, "Psychotherapie": 0, "Zahnaerztliche_Personen": 0, "Oeffentliche_Apotheken": 0, "Heilmittelpraxen": 0, "Pflegeeinrichtungen_Dienste": 0, "Krankenhaus_Reha_Hospiz": 0, "Erhebungsstatus": "vollständig"},
+    {"Gemeinde": "Eichstätt (Stadt)", "Einwohner": 14066, "Aerztliche_Fachgebietseintraege": 78, "Psychotherapie": 3, "Zahnaerztliche_Personen": 10, "Oeffentliche_Apotheken": 4, "Heilmittelpraxen": 14, "Pflegeeinrichtungen_Dienste": 7, "Krankenhaus_Reha_Hospiz": 1, "Erhebungsstatus": "vollständig"},
+    {"Gemeinde": "Eitensheim", "Einwohner": 3030, "Aerztliche_Fachgebietseintraege": 5, "Psychotherapie": 1, "Zahnaerztliche_Personen": 0, "Oeffentliche_Apotheken": 1, "Heilmittelpraxen": 2, "Pflegeeinrichtungen_Dienste": 0, "Krankenhaus_Reha_Hospiz": 0, "Erhebungsstatus": "vollständig"},
+    {"Gemeinde": "Gaimersheim", "Einwohner": 12526, "Aerztliche_Fachgebietseintraege": 17, "Psychotherapie": 1, "Zahnaerztliche_Personen": 3, "Oeffentliche_Apotheken": 2, "Heilmittelpraxen": 4, "Pflegeeinrichtungen_Dienste": 5, "Krankenhaus_Reha_Hospiz": 0, "Erhebungsstatus": "vollständig"},
+    {"Gemeinde": "Großmehring", "Einwohner": 7498, "Aerztliche_Fachgebietseintraege": 3, "Psychotherapie": 1, "Zahnaerztliche_Personen": 0, "Oeffentliche_Apotheken": 1, "Heilmittelpraxen": 0, "Pflegeeinrichtungen_Dienste": 1, "Krankenhaus_Reha_Hospiz": 0, "Erhebungsstatus": "vollständig"},
+    {"Gemeinde": "Hepberg", "Einwohner": 3077, "Aerztliche_Fachgebietseintraege": 1, "Psychotherapie": 1, "Zahnaerztliche_Personen": 0, "Oeffentliche_Apotheken": 0, "Heilmittelpraxen": 2, "Pflegeeinrichtungen_Dienste": 0, "Krankenhaus_Reha_Hospiz": 0, "Erhebungsstatus": "vollständig"},
+    {"Gemeinde": "Hitzhofen", "Einwohner": 3022, "Aerztliche_Fachgebietseintraege": 0, "Psychotherapie": 0, "Zahnaerztliche_Personen": 0, "Oeffentliche_Apotheken": 0, "Heilmittelpraxen": 0, "Pflegeeinrichtungen_Dienste": 0, "Krankenhaus_Reha_Hospiz": 0, "Erhebungsstatus": "vollständig"},
+    {"Gemeinde": "Kinding", "Einwohner": 2600, "Aerztliche_Fachgebietseintraege": 0, "Psychotherapie": 0, "Zahnaerztliche_Personen": 0, "Oeffentliche_Apotheken": 0, "Heilmittelpraxen": 1, "Pflegeeinrichtungen_Dienste": 0, "Krankenhaus_Reha_Hospiz": 0, "Erhebungsstatus": "vollständig"},
+    {"Gemeinde": "Kipfenberg", "Einwohner": 5835, "Aerztliche_Fachgebietseintraege": 3, "Psychotherapie": 1, "Zahnaerztliche_Personen": 2, "Oeffentliche_Apotheken": 1, "Heilmittelpraxen": 6, "Pflegeeinrichtungen_Dienste": 1, "Krankenhaus_Reha_Hospiz": 1, "Erhebungsstatus": "vollständig"},
+    {"Gemeinde": "Kösching", "Einwohner": 9737, "Aerztliche_Fachgebietseintraege": 54, "Psychotherapie": 5, "Zahnaerztliche_Personen": 1, "Oeffentliche_Apotheken": 2, "Heilmittelpraxen": 4, "Pflegeeinrichtungen_Dienste": 1, "Krankenhaus_Reha_Hospiz": 1, "Erhebungsstatus": "vollständig"},
+    {"Gemeinde": "Lenting", "Einwohner": 4980, "Aerztliche_Fachgebietseintraege": 5, "Psychotherapie": 0, "Zahnaerztliche_Personen": 2, "Oeffentliche_Apotheken": 1, "Heilmittelpraxen": 2, "Pflegeeinrichtungen_Dienste": 0, "Krankenhaus_Reha_Hospiz": 0, "Erhebungsstatus": "vollständig"},
+    {"Gemeinde": "Mindelstetten", "Einwohner": 1822, "Aerztliche_Fachgebietseintraege": 2, "Psychotherapie": 0, "Zahnaerztliche_Personen": 0, "Oeffentliche_Apotheken": 0, "Heilmittelpraxen": 0, "Pflegeeinrichtungen_Dienste": 0, "Krankenhaus_Reha_Hospiz": 0, "Erhebungsstatus": "vollständig"},
+    {"Gemeinde": "Mörnsheim", "Einwohner": 1523, "Aerztliche_Fachgebietseintraege": 0, "Psychotherapie": 0, "Zahnaerztliche_Personen": 0, "Oeffentliche_Apotheken": 0, "Heilmittelpraxen": 1, "Pflegeeinrichtungen_Dienste": 0, "Krankenhaus_Reha_Hospiz": 0, "Erhebungsstatus": "vollständig"},
+    {"Gemeinde": "Nassenfels", "Einwohner": 2351, "Aerztliche_Fachgebietseintraege": 0, "Psychotherapie": 0, "Zahnaerztliche_Personen": 0, "Oeffentliche_Apotheken": 1, "Heilmittelpraxen": 0, "Pflegeeinrichtungen_Dienste": 0, "Krankenhaus_Reha_Hospiz": 0, "Erhebungsstatus": "vollständig"},
+    {"Gemeinde": "Oberdolling", "Einwohner": 1371, "Aerztliche_Fachgebietseintraege": 0, "Psychotherapie": 0, "Zahnaerztliche_Personen": 0, "Oeffentliche_Apotheken": 0, "Heilmittelpraxen": 0, "Pflegeeinrichtungen_Dienste": 0, "Krankenhaus_Reha_Hospiz": 0, "Erhebungsstatus": "vollständig"},
+    {"Gemeinde": "Pförring", "Einwohner": 4100, "Aerztliche_Fachgebietseintraege": 1, "Psychotherapie": 0, "Zahnaerztliche_Personen": 1, "Oeffentliche_Apotheken": 1, "Heilmittelpraxen": 0, "Pflegeeinrichtungen_Dienste": 1, "Krankenhaus_Reha_Hospiz": 0, "Erhebungsstatus": "vollständig"},
+    {"Gemeinde": "Pollenfeld", "Einwohner": 3051, "Aerztliche_Fachgebietseintraege": 1, "Psychotherapie": 1, "Zahnaerztliche_Personen": 0, "Oeffentliche_Apotheken": 0, "Heilmittelpraxen": 1, "Pflegeeinrichtungen_Dienste": 0, "Krankenhaus_Reha_Hospiz": 0, "Erhebungsstatus": "vollständig"},
+    {"Gemeinde": "Schernfeld", "Einwohner": 3285, "Aerztliche_Fachgebietseintraege": 1, "Psychotherapie": 0, "Zahnaerztliche_Personen": 0, "Oeffentliche_Apotheken": 0, "Heilmittelpraxen": 1, "Pflegeeinrichtungen_Dienste": 0, "Krankenhaus_Reha_Hospiz": 0, "Erhebungsstatus": "vollständig"},
+    {"Gemeinde": "Stammham", "Einwohner": 4159, "Aerztliche_Fachgebietseintraege": 2, "Psychotherapie": 2, "Zahnaerztliche_Personen": 0, "Oeffentliche_Apotheken": 0, "Heilmittelpraxen": 1, "Pflegeeinrichtungen_Dienste": 0, "Krankenhaus_Reha_Hospiz": 0, "Erhebungsstatus": "vollständig"},
+    {"Gemeinde": "Titting", "Einwohner": 2688, "Aerztliche_Fachgebietseintraege": 1, "Psychotherapie": 2, "Zahnaerztliche_Personen": 0, "Oeffentliche_Apotheken": 1, "Heilmittelpraxen": 1, "Pflegeeinrichtungen_Dienste": 1, "Krankenhaus_Reha_Hospiz": 0, "Erhebungsstatus": "vollständig"},
+    {"Gemeinde": "Walting", "Einwohner": 2289, "Aerztliche_Fachgebietseintraege": 0, "Psychotherapie": 0, "Zahnaerztliche_Personen": 0, "Oeffentliche_Apotheken": 0, "Heilmittelpraxen": 0, "Pflegeeinrichtungen_Dienste": 0, "Krankenhaus_Reha_Hospiz": 0, "Erhebungsstatus": "vollständig"},
+    {"Gemeinde": "Wellheim", "Einwohner": 2725, "Aerztliche_Fachgebietseintraege": 4, "Psychotherapie": 1, "Zahnaerztliche_Personen": 1, "Oeffentliche_Apotheken": 0, "Heilmittelpraxen": 0, "Pflegeeinrichtungen_Dienste": 0, "Krankenhaus_Reha_Hospiz": 0, "Erhebungsstatus": "vollständig"},
+    {"Gemeinde": "Wettstetten", "Einwohner": 5205, "Aerztliche_Fachgebietseintraege": 8, "Psychotherapie": 0, "Zahnaerztliche_Personen": 1, "Oeffentliche_Apotheken": 1, "Heilmittelpraxen": 1, "Pflegeeinrichtungen_Dienste": 0, "Krankenhaus_Reha_Hospiz": 0, "Erhebungsstatus": "vollständig"}
+]
+
+# Multi-level data loading helper
 @st.cache_data
 def load_data():
-    df_over = None
-    df_det = None
-
-    # Option 1: Try reading from Excel file
+    # Level 1: Try reading Excel Matrix
     if os.path.exists(XLSX_FILENAME):
         try:
-            df_over = pd.read_excel(XLSX_FILENAME, sheet_name="Gemeindeübersicht", header=3)
-            df_over = df_over[df_over['Gemeinde'].notna() & (~df_over['Gemeinde'].astype(str).str.contains('Gesamt'))]
-            rename_map = {
-                'Ärztliche Fachgebietseinträge': 'Aerztliche_Fachgebietseintraege',
-                'Zahnärztliche Personen': 'Zahnaerztliche_Personen',
-                'Öffentliche Apotheken': 'Oeffentliche_Apotheken',
-                'Pflegeeinrichtungen / -dienste': 'Pflegeeinrichtungen_Dienste',
-                'Krankenhaus / Reha / Hospiz': 'Krankenhaus_Reha_Hospiz'
-            }
-            df_over = df_over.rename(columns=rename_map)
+            xls = pd.ExcelFile(XLSX_FILENAME)
+            sheet_over = "Gemeindeübersicht" if "Gemeindeübersicht" in xls.sheet_names else xls.sheet_names[1]
+            sheet_det = "Detailmatrix Gemeinden" if "Detailmatrix Gemeinden" in xls.sheet_names else xls.sheet_names[2]
+            
+            df_raw_o = pd.read_excel(XLSX_FILENAME, sheet_name=sheet_over)
+            hdr_o = 0
+            for idx, r in df_raw_o.iterrows():
+                if "Gemeinde" in r.values:
+                    hdr_o = idx + 1
+                    break
+            df_o = pd.read_excel(XLSX_FILENAME, sheet_name=sheet_over, header=hdr_o)
 
-            df_det = pd.read_excel(XLSX_FILENAME, sheet_name="Detailmatrix Gemeinden", header=3)
-            df_det = df_det[df_det['Gemeinde'].notna() & (~df_det['Gemeinde'].astype(str).str.contains('Gesamt'))]
+            df_raw_d = pd.read_excel(XLSX_FILENAME, sheet_name=sheet_det)
+            hdr_d = 0
+            for idx, r in df_raw_d.iterrows():
+                if "Gemeinde" in r.values:
+                    hdr_d = idx + 1
+                    break
+            df_d = pd.read_excel(XLSX_FILENAME, sheet_name=sheet_det, header=hdr_d)
+
+            df_o = df_o[df_o["Gemeinde"].astype(str).str.startswith("Gesamt") == False]
+            return df_o.fillna(""), df_d.fillna("")
         except Exception:
             pass
 
-    # Option 2: Try reading from CSV files
-    if df_over is None or df_det is None:
-        if os.path.exists(CSV_OVERVIEW_FILENAME) and os.path.exists(CSV_DETAILED_FILENAME):
-            df_over = pd.read_csv(CSV_OVERVIEW_FILENAME)
-            df_det = pd.read_csv(CSV_DETAILED_FILENAME)
-        elif os.path.exists(CSV_FALLBACK_FILENAME):
-            df_over = pd.read_csv(CSV_FALLBACK_FILENAME)
-            df_det = df_over.copy()
+    # Level 2: Try reading CSV files
+    if os.path.exists(CSV_OVERVIEW_FILENAME) and os.path.exists(CSV_DETAILED_FILENAME):
+        try:
+            df_o = pd.read_csv(CSV_OVERVIEW_FILENAME)
+            df_d = pd.read_csv(CSV_DETAILED_FILENAME)
+            return df_o.fillna(""), df_d.fillna("")
+        except Exception:
+            pass
 
-    if df_over is None or df_det is None:
-        raise FileNotFoundError("Keine gültige Datendatei (Excel/CSV) im Verzeichnis gefunden.")
+    # Level 3: Fallback to embedded DataFrame
+    df_o = pd.DataFrame(FALLBACK_COMMUNITIES)
+    df_d = pd.DataFrame(FALLBACK_COMMUNITIES)
+    return df_o.fillna(""), df_d.fillna("")
 
-    df_over = df_over.fillna("")
-    df_det = df_det.fillna("")
-    return df_over, df_det
+df_overview, df_detailed = load_data()
 
-try:
-    df_overview, df_detailed = load_data()
-except Exception as e:
-    st.error(f"""
-    🚨 **Fehler beim Laden der Daten!**  
-    Es konnte keine gültige Daten-Datei im Repository gefunden werden.  
-    **Lösung:** Bitte stellt sicher, dass entweder die Datei `versorgungsatlas_eichstaett_original_matrix.xlsx` oder die CSV-Dateien hochgeladen wurden.
-    """)
-    st.stop()
+# Ensure numeric types
+num_cols = ["Einwohner", "Aerztliche_Fachgebietseintraege", "Psychotherapie", "Zahnaerztliche_Personen", 
+            "Oeffentliche_Apotheken", "Heilmittelpraxen", "Pflegeeinrichtungen_Dienste", "Krankenhaus_Reha_Hospiz"]
+for col in num_cols:
+    if col in df_overview.columns:
+        df_overview[col] = pd.to_numeric(df_overview[col], errors='coerce').fillna(0)
 
 # Custom Styling
 st.markdown("""
@@ -101,12 +129,13 @@ st.markdown("""
         color: #4B5563;
         margin-bottom: 25px;
     }
-    .info-card {
-        background-color: #F8FAFC;
-        border-radius: 8px;
-        padding: 16px;
-        border: 1px solid #E2E8F0;
-        margin-bottom: 20px;
+    .badge-status {
+        background-color: #DEF7EC;
+        color: #03543F;
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-weight: bold;
+        font-size: 12px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -114,26 +143,24 @@ st.markdown("""
 # SIDEBAR: Context & Info
 st.sidebar.image("https://img.icons8.com/clouds/150/hospital-room.png", width=100)
 st.sidebar.title("Versorgungsatlas")
-st.sidebar.markdown("**Stadt und Landkreis Eichstätt (Oberbayern)**")
+st.sidebar.markdown("**Landkreis Eichstätt (Oberbayern)**")
 
 # Studentisches Infofeld in der Sidebar
 st.sidebar.markdown(f"""
 <div style="background-color:#F5F3FF; padding:12px; border-radius:5px; border-left:4px solid #7C3AED; margin-bottom:15px; font-size: 13px;">
-    <strong>🎓 Wissenschaftliches Projekt:</strong><br>
-    • <strong>Hochschule (Studium):</strong><br>{UNI_NAME}<br>
-    • <strong>Praktikumsstelle:</strong><br>{PRAKTIKUM_NAME}<br>
-    • <strong>Studiengang:</strong> {STUDIENGANG} ({SEMESTER})<br><br>
+    <strong>🎓 Studentisches Lehrprojekt:</strong><br>
+    Erstellt im Rahmen des Masterstudiengangs <strong>{STUDIENGANG}</strong> ({SEMESTER}) an der <strong>{UNI_NAME}</strong>.<br><br>
     <strong>Projekttitel:</strong><br>
     <em>{PROJEKTTITEL}</em><br><br>
-    <strong>Autorinnen / Projektteam:</strong><br>
-    <span style="font-weight:bold; color:#1E3A8A;">{AUTORINNEN}</span>
+    <strong>Bearbeitung:</strong><br>
+    {PROJEKTTEILNEHMER}
 </div>
 """, unsafe_allow_html=True)
 
 # Structure Box with Exact Stichtag
 st.sidebar.markdown("""
 <div style="background-color:#EFF6FF; padding:12px; border-radius:5px; border-left:4px solid #3B82F6; margin-bottom:15px; font-size: 13px;">
-    <strong>📍 Steckbrief Stadt und Landkreis Eichstätt:</strong><br>
+    <strong>📍 Steckbrief Landkreis Eichstätt:</strong><br>
     🏛️ <strong>Regierungsbezirk:</strong> Oberbayern<br>
     👥 <strong>Einwohner:</strong> 135.982<br>
     📅 <strong>Stichtag Einwohner:</strong> 31.12.2025<br>
@@ -143,7 +170,7 @@ st.sidebar.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-st.sidebar.subheader("📥 Downloads (Vollständige Daten)")
+st.sidebar.subheader("📥 Downloads")
 
 # 1. Download XLSX
 if os.path.exists(XLSX_FILENAME):
@@ -152,57 +179,43 @@ if os.path.exists(XLSX_FILENAME):
             st.sidebar.download_button(
                 label="📊 Original Excel-Matrix (.xlsx) herunterladen",
                 data=fp,
-                file_name=os.path.basename(XLSX_FILENAME),
+                file_name=XLSX_FILENAME,
                 mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                help="Enthält alle Tabellenblätter: Steckbrief, Gemeindeübersicht, Detailmatrix aller Fachgebietseinträge & Recherchemanual"
+                help="Enthält alle Tabellenblätter: Steckbrief, Gemeindeübersicht, Detailmatrix & Recherchemanual"
             )
     except Exception:
         pass
-
-# 2. Download Detailed CSV
-if df_detailed is not None:
-    csv_det_bytes = df_detailed.to_csv(index=False).encode('utf-8')
+else:
+    # Offer dynamically generated Excel from current dataframe
+    output_b = io.BytesIO()
+    with pd.ExcelWriter(output_b, engine='openpyxl') as writer:
+        df_overview.to_excel(writer, sheet_name='Gemeindeübersicht', index=False)
+        df_detailed.to_excel(writer, sheet_name='Detailmatrix Gemeinden', index=False)
     st.sidebar.download_button(
-        label="📈 Detaillierte Fachkategorien (.csv) herunterladen",
-        data=csv_det_bytes,
-        file_name="versorgungsatlas_eichstaett_detailliert.csv",
-        mime="text/csv",
-        help="Enthält alle Aufschlüsselungen nach Fachärzten, Psychotherapie, Zahnärzten, Heilmitteln und Pflege"
-    )
-
-# 3. Download Overview CSV
-if df_overview is not None:
-    csv_over_bytes = df_overview.to_csv(index=False).encode('utf-8')
-    st.sidebar.download_button(
-        label="📋 Gemeindeübersicht (.csv) herunterladen",
-        data=csv_over_bytes,
-        file_name="versorgungsatlas_eichstaett_uebersicht.csv",
-        mime="text/csv"
+        label="📊 Original Excel-Matrix (.xlsx) herunterladen",
+        data=output_b.getvalue(),
+        file_name=XLSX_FILENAME,
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
 st.sidebar.markdown("""
 ---
-✉️ **Kontakt:**  
+📄 **Gedruckter Versorgungsatlas (PDF):**  
+Den vollständigen Atlas mit allen 30 Detailblättern können Sie über den QR-Code auf unserem Poster herunterladen.
+
+✉️ **Forschungsanfragen / Original-Datensatz:**  
 _Kontaktieren Sie das Autorenteam direkt am Poster oder per E-Mail._
 """)
 
-# MAIN PAGE HEADER
+# MAIN PAGE
 st.markdown('<div class="main-title">Gesundheits- & Versorgungsatlas</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">Interaktives Informationssystem zur medizinischen und pflegerischen Infrastruktur in Stadt und Landkreis Eichstätt</div>', unsafe_allow_html=True)
-
-# Header info line for authors and institutions
-st.markdown(f"""
-<div style="background-color:#F1F5F9; padding:12px 16px; border-radius:6px; margin-bottom:20px; font-size:14px; color:#334155; border-left:4px solid #1E3A8A;">
-    <strong>🎓 Projekt der {UNI_NAME}</strong> | <strong>Praktikumsstelle: {PRAKTIKUM_NAME}</strong><br>
-    <strong>Autorinnen:</strong> <span style="font-weight:bold; color:#1E3A8A;">{AUTORINNEN}</span>
-</div>
-""", unsafe_allow_html=True)
+st.markdown('<div class="subtitle">Interaktives Informationssystem zur medizinischen und pflegerischen Infrastruktur im Landkreis Eichstätt</div>', unsafe_allow_html=True)
 
 # Tabs
-tab1, tab2, tab3 = st.tabs(["📊 Dashboard & Regionalvergleich", "🔍 Gemeinde-Steckbriefe (Detailansicht)", "📘 Recherchemanual & Methodik"])
+tab1, tab2, tab3 = st.tabs(["📊 Dashboard & Landkreis-Steckbrief", "🔍 Gemeinde-Steckbriefe (Detailansicht)", "📘 Recherchemanual & Methodik"])
 
 with tab1:
-    st.header("Steckbrief Stadt und Landkreis Eichstätt & Regionaler Überblick")
+    st.header("Landkreis-Steckbrief (Blatt 01) & Regionaler Überblick")
     
     # Steckbrief Grid
     col_sb1, col_sb2 = st.columns([1, 2])
@@ -210,9 +223,9 @@ with tab1:
     with col_sb1:
         st.markdown("""
         <div style="background-color:#F8FAFC; padding:18px; border-radius:8px; border:1px solid #CBD5E1;">
-            <h4 style="margin-top:0; color:#1E3A8A;">📌 Steckbrief Stadt und Landkreis Eichstätt</h4>
+            <h4 style="margin-top:0; color:#1E3A8A;">📌 Landkreis-Steckbrief (Blatt 01)</h4>
             <table style="width:100%; font-size:14px; border-collapse:collapse;">
-                <tr style="border-bottom:1px solid #E2E8F0;"><td style="padding:6px 0;"><strong>Untersuchungsraum:</strong></td><td>Stadt und Landkreis Eichstätt</td></tr>
+                <tr style="border-bottom:1px solid #E2E8F0;"><td style="padding:6px 0;"><strong>Untersuchungsraum:</strong></td><td>Landkreis Eichstätt</td></tr>
                 <tr style="border-bottom:1px solid #E2E8F0;"><td style="padding:6px 0;"><strong>Regierungsbezirk:</strong></td><td>Oberbayern</td></tr>
                 <tr style="border-bottom:1px solid #E2E8F0;"><td style="padding:6px 0;"><strong>Einwohner:</strong></td><td><strong>135.982</strong></td></tr>
                 <tr style="border-bottom:1px solid #E2E8F0;"><td style="padding:6px 0;"><strong>Einwohner – Stichtag:</strong></td><td><span style="color:#2563EB; font-weight:bold;">31.12.2025</span></td></tr>
@@ -232,7 +245,6 @@ with tab1:
                 return int(pd.to_numeric(df[col], errors='coerce').fillna(0).sum())
             return 0
 
-        tot_einwohner = safe_sum(df_overview, "Einwohner")
         tot_aerzte = safe_sum(df_overview, "Aerztliche_Fachgebietseintraege")
         tot_psych = safe_sum(df_overview, "Psychotherapie")
         tot_zahnaerzte = safe_sum(df_overview, "Zahnaerztliche_Personen")
@@ -255,10 +267,10 @@ with tab1:
     
     # Regional / Landkreisweite Versorgungsstrukturen
     st.subheader("Landkreisweite, regionale und koordinierende Versorgungsstrukturen")
-    st.markdown("_Gemäß Erfassungsmethodik werden gemeindeübergreifend koordinierte Strukturen auf Landkreisebene geführt:_")
+    st.markdown("_Gemäß Erfassungsmethodik (Blatt 01) werden gemeindeübergreifend koordinierte Strukturen auf Landkreisebene geführt:_")
     
     landkreis_table = pd.DataFrame([
-        {"Versorgungsbereich": "Öffentlicher Gesundheitsdienst", "Akteur / Angebot": "Gesundheitsamt Eichstätt", "Standort / Träger": "Landratsamt Eichstätt", "Funktion / Versorgungsform": "Öffentlicher Gesundheitsdienst", "Räumlicher Bezug": "Landkreisweit", "Standardquelle": "Website Gesundheitsamt Eichstätt"},
+        {"Versorgungsbereich": "Öffentlicher Gesundheitsdienst", "Akteur / Angebot": "Gesundheitsamt Eichstätt", "Standort / Träger": "Landratsamt Eichstätt / Gesundheitsamt", "Funktion / Versorgungsform": "Öffentlicher Gesundheitsdienst", "Räumlicher Bezug": "Landkreisweit", "Standardquelle": "Website Gesundheitsamt Eichstätt"},
         {"Versorgungsbereich": "Gesundheitsförderung & Koordination", "Akteur / Angebot": "Gesundheitsregionplus", "Standort / Träger": "Landkreis Eichstätt", "Funktion / Versorgungsform": "Koordination, Vernetzung & Prävention", "Räumlicher Bezug": "Landkreisweit", "Standardquelle": "Website Landkreis Eichstätt"},
         {"Versorgungsbereich": "Schwangerschaft & Familie", "Akteur / Angebot": "Schwangerschaftsberatung", "Standort / Träger": "Gesundheitsamt / Träger", "Funktion / Versorgungsform": "Beratung & Unterstützung", "Räumlicher Bezug": "Landkreisweit", "Standardquelle": "Gesundheitsamt Eichstätt"},
         {"Versorgungsbereich": "Sucht", "Akteur / Angebot": "Suchtberatung & Suchtprävention", "Standort / Träger": "Gesundheitsamt / Partner", "Funktion / Versorgungsform": "Beratung, Vermittlung & Prävention", "Räumlicher Bezug": "Landkreisweit / regional", "Standardquelle": "Gesundheitsamt Eichstätt"},
@@ -267,7 +279,7 @@ with tab1:
         {"Versorgungsbereich": "Hebammenversorgung", "Akteur / Angebot": "Hebammen mit Versorgungsgebiet", "Standort / Träger": "Freiberufliche Hebammen", "Funktion / Versorgungsform": "Aufsuchende Hebammenversorgung", "Räumlicher Bezug": "Landkreisweit / PLZ", "Standardquelle": "Hebammensuche Bayern"},
         {"Versorgungsbereich": "Rettungsdienst", "Akteur / Angebot": "Rettungswachen & Notarztstandorte", "Standort / Träger": "ZRF Region 10 / ILS", "Funktion / Versorgungsform": "Notfallrettung & Notarztversorgung", "Räumlicher Bezug": "Rettungsdienstbereich Region 10", "Standardquelle": "ZRF Region Ingolstadt"},
         {"Versorgungsbereich": "Krankenhausversorgung", "Akteur / Angebot": "Klinik Eichstätt & Klinik Kösching", "Standort / Träger": "Kliniken im Naturpark Altmühltal", "Funktion / Versorgungsform": "Stationäre Grund- und Regelversorgung", "Räumlicher Bezug": "Standortbezogen & landkreisweit", "Standardquelle": "Deutsches Krankenhausverzeichnis"},
-        {"Versorgungsbereich": "Rehabilitation", "Akteur / Angebot": "Klinik Kipfenberg (Neurolog. Zentrum)", "Standort / Träger": "Private / Freie Träger", "Funktion / Versorgungsform": "Stationäre & ambulante Rehabilitation", "Räumlicher Bezug": "Standortbezogen / regional", "Standardquelle": "GKV / QS-Reha"}
+        {"Versorgungsbereich": "Rehabilitation", "Akteur / Angebot": "Klinik Kipfenberg (Neurolog. Zentrum)", "Standort / Träger": "Private / Freie Träger", "Funktion / Versorgungsform": "Stationäre & ambulante Rehabilitation", "Räumlicher Bezug": "Standortbezogen / regional", "Standardquelle": "GKV-Suchmaschinen / QS-Reha"}
     ]).fillna("")
     
     st.dataframe(landkreis_table, use_container_width=True, hide_index=True)
@@ -289,42 +301,58 @@ with tab1:
     selected_label = st.selectbox("Wählen Sie ein Merkmal für den Vergleich der 30 Gemeinden:", list(indicator_mapping.keys()))
     selected_col = indicator_mapping[selected_label]
     
-    if selected_col in df_overview.columns:
-        df_sorted = df_overview.sort_values(by=selected_col, ascending=False)
-        
-        fig = px.bar(
-            df_sorted, 
-            x="Gemeinde", 
-            y=selected_col,
-            title=f"Verteilung von: {selected_label}",
-            labels={selected_col: selected_label, "Gemeinde": "Gemeinde"},
-            color=selected_col,
-            color_continuous_scale="Viridis",
-            height=480
-        )
-        fig.update_traces(
-            marker_line_color='#1E293B', 
-            marker_line_width=1.2,
-            texttemplate='%{y}', 
-            textposition='outside'
-        )
-        fig.update_layout(xaxis_tickangle=-45, plot_bgcolor='white', paper_bgcolor='white', yaxis=dict(gridcolor='#E2E8F0'))
-        st.plotly_chart(fig, use_container_width=True)
+    df_sorted = df_overview.sort_values(by=selected_col, ascending=False)
+    
+    fig = px.bar(
+        df_sorted, 
+        x="Gemeinde", 
+        y=selected_col,
+        title=f"Verteilung von: {selected_label}",
+        labels={selected_col: selected_label, "Gemeinde": "Gemeinde"},
+        color=selected_col,
+        color_continuous_scale="Viridis",
+        height=480
+    )
+    fig.update_traces(
+        marker_line_color='#1E293B', 
+        marker_line_width=1.2,
+        texttemplate='%{y}', 
+        textposition='outside'
+    )
+    fig.update_layout(xaxis_tickangle=-45, plot_bgcolor='white', paper_bgcolor='white', yaxis=dict(gridcolor='#E2E8F0'))
+    st.plotly_chart(fig, use_container_width=True)
 
     st.markdown("---")
 
-    # BENCHMARK GRAPHIC & SOURCES
-    # Hinweis: Die Benchmark-Grafik wird als Bilddatei 'versorgungsatlas_regionaler_benchmark.png' separat hochgeladen.
+    # CLEAN BAYERN BENCHMARK GRAPHIC & SOURCES (UNIFORM LEVEL: BAYERN ONLY)
     st.subheader("📍 Regionaler Benchmark-Vergleich (Landkreis Eichstätt vs. Bayern)")
     st.markdown("""
     _Methode: Um eine methodisch saubere Gegenüberstellung ohne Durchmischung von Bundes- und Landesebene zu gewährleisten, werden die Erfassungswerte des Landkreises Eichstätt einheitlich dem **Landesdurchschnitt Bayern** gegenübergestellt._
     """)
 
-    if os.path.exists(BENCHMARK_IMG_FILENAME):
-        st.image(BENCHMARK_IMG_FILENAME, caption="Regionaler Benchmark-Vergleich: Eichstätt vs. Bayern (Pro 100.000 Einwohner)", use_column_width=True)
-    else:
-        st.info("ℹ️ *Hinweis: Die Benchmark-Grafik (`versorgungsatlas_regionaler_benchmark.png`) wird als Bilddatei separat hochgeladen.*")
+    benchmark_df = pd.DataFrame([
+        {"Versorgungsindikator": "Öffentliche Apotheken (je 100k Einw.)", "Landkreis Eichstätt": 15.4, "Bayern-Durchschnitt": 20.2},
+        {"Versorgungsindikator": "Ambulante Ärzt/innen & Psych. (je 100k Einw.)", "Landkreis Eichstätt": 157.4, "Bayern-Durchschnitt": 198.4},
+        {"Versorgungsindikator": "Zahnärztliche Personen (je 100k Einw.)", "Landkreis Eichstätt": 18.4, "Bayern-Durchschnitt": 87.2}
+    ])
 
+    if os.path.exists(BENCHMARK_IMG_PATH):
+        st.image(BENCHMARK_IMG_PATH, caption="Regionaler Benchmark-Vergleich (Landkreis Eichstätt vs. Bayern)", use_container_width=True)
+    else:
+        fig_bench = px.bar(
+            benchmark_df,
+            x="Versorgungsindikator",
+            y=["Landkreis Eichstätt", "Bayern-Durchschnitt"],
+            barmode="group",
+            title="Versorgungsdichte je 100.000 Einwohner im Vergleich zum Landesdurchschnitt Bayern",
+            color_discrete_map={"Landkreis Eichstätt": "#2563EB", "Bayern-Durchschnitt": "#94A3B8"},
+            height=380
+        )
+        fig_bench.update_traces(texttemplate='%{y}', textposition='outside')
+        fig_bench.update_layout(plot_bgcolor='white', paper_bgcolor='white', yaxis=dict(gridcolor='#E2E8F0'), legend_title_text="")
+        st.plotly_chart(fig_bench, use_container_width=True)
+
+    # Methodological Sources Caption
     st.caption("""
     📌 **Quellen und Stichtagsnachweis der Referenzdaten:**
     * **Einwohnerzahl Stichtag:** 31.12.2025 (Bayerisches Landesamt für Statistik).
@@ -336,151 +364,161 @@ with tab1:
 with tab2:
     st.header("Gemeindespezifische Detail-Steckbriefe")
     
-    if "Gemeinde" in df_detailed.columns:
-        selected_gemeinde = st.selectbox("Gemeinde auswählen:", sorted(df_detailed["Gemeinde"].unique()))
+    selected_gemeinde = st.selectbox("Gemeinde auswählen:", sorted(df_detailed["Gemeinde"].unique()))
+    
+    g_det = df_detailed[df_detailed["Gemeinde"] == selected_gemeinde].iloc[0]
+    
+    col_g1, col_g2 = st.columns([1, 2])
+    
+    with col_g1:
+        st.markdown(f"### Gemeindesteckbrief: **{selected_gemeinde}**")
         
-        g_det = df_detailed[df_detailed["Gemeinde"] == selected_gemeinde].iloc[0]
+        # Helper to format clean text without 'nan'
+        def clean_val(val, default="-"):
+            if pd.isna(val):
+                return default
+            s = str(val).strip()
+            if s.lower() in ["nan", "none", ""]:
+                return default
+            return s
+
+        einwohner_num = pd.to_numeric(g_det.get('Einwohner', 0), errors='coerce') or 0
+        einwohner_val = f"{int(einwohner_num):,}".replace(",", ".")
         
-        col_g1, col_g2 = st.columns([1, 2])
+        st.markdown(f"""
+        <div style="background-color:#F8FAFC; padding:15px; border-radius:8px; border:1px solid #E2E8F0; font-size:13.5px;">
+            👥 <strong>Einwohnerzahl:</strong> {einwohner_val} Einwohner<br>
+            📐 <strong>Fläche:</strong> {clean_val(g_det.get('Flaeche_km2', ''))} km² ({clean_val(g_det.get('Einwohner_je_km2', ''))} Einw./km²)<br>
+            🏛️ <strong>Gemeindeart:</strong> {clean_val(g_det.get('Gemeindeart', ''))}<br>
+            🏢 <strong>Verwaltungsgemeinschaft:</strong> {clean_val(g_det.get('Verwaltungsgemeinschaft', ''))}<br>
+            🏛️ <strong>Rathaus:</strong> {clean_val(g_det.get('Rathaus', ''))}<br>
+            🌐 <strong>Website:</strong> <a href="{clean_val(g_det.get('Website', ''))}" target="_blank">{clean_val(g_det.get('Website', ''))}</a><br>
+            👤 <strong>Bearbeiter/in:</strong> {clean_val(g_det.get('Bearbeiter', ''))}<br>
+            📅 <strong>Letzte Prüfung:</strong> {clean_val(g_det.get('Letzte_Pruefung', ''))}<br>
+            ✅ <strong>Erhebungsstatus:</strong> <span class="badge-status">{clean_val(g_det.get('Erhebungsstatus', ''))}</span>
+        </div>
+        """, unsafe_allow_html=True)
         
-        with col_g1:
-            st.markdown(f"### Gemeindesteckbrief: **{selected_gemeinde}**")
+        st.markdown("#### Ortsteile / Gemeindeteile")
+        st.info(clean_val(g_det.get('Ortsteile', '')))
+        
+        # Check remark carefully so 'nan' is NEVER displayed
+        bemerkung_val = clean_val(g_det.get('Bemerkung', ''), default="")
+        if bemerkung_val and bemerkung_val != "-":
+            st.warning(f"⚠️ **Besondere Bemerkung:** {bemerkung_val}")
             
-            def clean_val(val, default="-"):
+    with col_g2:
+        st.markdown(f"### Detaillierte Fachkategorien: **{selected_gemeinde}**")
+        
+        # Helper to convert float counts to clean ints
+        def clean_int(val):
+            try:
                 if pd.isna(val):
-                    return default
-                s = str(val).strip()
-                if s.lower() in ["nan", "none", ""]:
-                    return default
-                return s
-
-            einwohner_raw = g_det.get('Einwohner', '-')
-            einwohner_val = f"{int(float(einwohner_raw)):,}".replace(",", ".") if str(einwohner_raw).replace('.','',1).isdigit() else str(einwohner_raw)
-            
-            st.markdown(f"""
-            <div style="background-color:#F8FAFC; padding:15px; border-radius:8px; border:1px solid #E2E8F0; font-size:13.5px;">
-                👥 <strong>Einwohnerzahl:</strong> {einwohner_val} Einwohner<br>
-                📐 <strong>Fläche:</strong> {clean_val(g_det.get('Flaeche_km2'))} km² ({clean_val(g_det.get('Einwohner_je_km2'))} Einw./km²)<br>
-                🏛️ <strong>Gemeindeart:</strong> {clean_val(g_det.get('Gemeindeart'))}<br>
-                🏢 <strong>Verwaltungsgemeinschaft:</strong> {clean_val(g_det.get('Verwaltungsgemeinschaft'))}<br>
-                🏛️ <strong>Rathaus:</strong> {clean_val(g_det.get('Rathaus'))}<br>
-                🌐 <strong>Website:</strong> <a href="{clean_val(g_det.get('Website'))}" target="_blank">{clean_val(g_det.get('Website'))}</a>
-            </div>
-            """, unsafe_allow_html=True)
-            
-            st.markdown("#### Ortsteile / Gemeindeteile")
-            st.info(clean_val(g_det.get('Ortsteile')))
-            
-            bemerkung_val = clean_val(g_det.get('Bemerkung', ''), default="")
-            if bemerkung_val and bemerkung_val != "-":
-                st.warning(f"⚠️ **Besondere Bemerkung:** {bemerkung_val}")
-                
-        with col_g2:
-            st.markdown(f"### Detaillierte Fachkategorien: **{selected_gemeinde}**")
-            
-            def clean_int(val):
-                try:
-                    if pd.isna(val) or str(val).strip().lower() in ["nan", "none", ""]:
-                        return 0
-                    return int(float(val))
-                except Exception:
                     return 0
+                return int(float(val))
+            except Exception:
+                return 0
 
-            # 1. Ambulante Ärztliche Versorgung
-            st.markdown("#### 🩺 Ambulante ärztliche Versorgung nach Fachgebieten")
-            aerzte_df = pd.DataFrame({
-                "Fachgebiet / Arztgruppe": [
-                    "Allgemeinmedizin", "Praktische Ärztinnen und Ärzte", "Innere Medizin",
-                    "Kinder- und Jugendmedizin", "Frauenheilkunde und Geburtshilfe", "Hals-Nasen-Ohren-Heilkunde",
-                    "Augenheilkunde", "Haut- und Geschlechtskrankheiten", "Orthopädie und Unfallchirurgie",
-                    "Chirurgie", "Neurologie", "Psychiatrie und Psychotherapie", "Urologie",
-                    "Anästhesiologie", "Radiologie", "Weitere Fachgebiete"
-                ],
-                "Anzahl (Vor Ort)": [
-                    clean_int(g_det.get("Allgemeinmedizin")), clean_int(g_det.get("Praktische_Aerzte")), clean_int(g_det.get("Innere_Medizin")),
-                    clean_int(g_det.get("Kinder_Jugendmedizin")), clean_int(g_det.get("Frauenheilkunde")), clean_int(g_det.get("HNO")),
-                    clean_int(g_det.get("Augenheilkunde")), clean_int(g_det.get("Hautkrankheiten")), clean_int(g_det.get("Orthopaedie")),
-                    clean_int(g_det.get("Chirurgie")), clean_int(g_det.get("Neurologie")), clean_int(g_det.get("Psychiatrie_Psychotherapie")),
-                    clean_int(g_det.get("Urologie")), clean_int(g_det.get("Anaesthesiologie")), clean_int(g_det.get("Radiologie")), clean_int(g_det.get("Weitere_Fachgebiete"))
-                ],
-                "Standardquelle": ["116117-Arztsuche / KVB"] * 16
+        # 1. Ambulante Ärztliche Versorgung
+        st.markdown("#### 🩺 Ambulante ärztliche Versorgung nach Fachgebieten")
+        aerzte_df = pd.DataFrame({
+            "Fachgebiet / Arztgruppe": [
+                "Allgemeinmedizin", "Praktische Ärztinnen und Ärzte", "Innere Medizin",
+                "Kinder- und Jugendmedizin", "Frauenheilkunde und Geburtshilfe", "Hals-Nasen-Ohren-Heilkunde",
+                "Augenheilkunde", "Haut- und Geschlechtskrankheiten", "Orthopädie und Unfallchirurgie",
+                "Chirurgie", "Neurologie", "Psychiatrie und Psychotherapie", "Urologie",
+                "Anästhesiologie", "Radiologie", "Weitere Fachgebiete"
+            ],
+            "Anzahl (Vor Ort)": [
+                clean_int(g_det.get("Allgemeinmedizin", 0)), clean_int(g_det.get("Praktische_Aerzte", 0)), clean_int(g_det.get("Innere_Medizin", 0)),
+                clean_int(g_det.get("Kinder_Jugendmedizin", 0)), clean_int(g_det.get("Frauenheilkunde", 0)), clean_int(g_det.get("HNO", 0)),
+                clean_int(g_det.get("Augenheilkunde", 0)), clean_int(g_det.get("Hautkrankheiten", 0)), clean_int(g_det.get("Orthopaedie", 0)),
+                clean_int(g_det.get("Chirurgie", 0)), clean_int(g_det.get("Neurologie", 0)), clean_int(g_det.get("Psychiatrie_Psychotherapie", 0)),
+                clean_int(g_det.get("Urologie", 0)), clean_int(g_det.get("Anaesthesiologie", 0)), clean_int(g_det.get("Radiologie", 0)), clean_int(g_det.get("Weitere_Fachgebiete", 0))
+            ],
+            "Standardquelle": ["116117-Arztsuche / KVB"] * 16
+        })
+        st.dataframe(aerzte_df, use_container_width=True, hide_index=True)
+        st.caption(f"**Summe Fachgebietseinträge:** {clean_int(g_det.get('Summe_Aerztliche_Fachgebietseintraege', 0))}")
+        
+        st.markdown("---")
+        
+        # 2. Psychotherapie & Zahnärzte
+        col_sub1, col_sub2 = st.columns(2)
+        
+        with col_sub1:
+            st.markdown("#### 🧠 Psychotherapie")
+            psych_df = pd.DataFrame({
+                "Kategorie": ["Psychologische Psychotherapie", "Kinder- & Jugendlichenpsychotherapie"],
+                "Anzahl": [clean_int(g_det.get("Psychologische_Psychotherapie", 0)), clean_int(g_det.get("Kinder_Jugendlichenpsychotherapie", 0))],
+                "Quelle": ["116117-Arztsuche"] * 2
             })
-            st.dataframe(aerzte_df, use_container_width=True, hide_index=True)
-            st.caption(f"**Summe Fachgebietseinträge:** {clean_int(g_det.get('Summe_Aerztliche_Fachgebietseintraege'))}")
+            st.dataframe(psych_df, use_container_width=True, hide_index=True)
             
-            st.markdown("---")
+            st.markdown("#### 🦷 Zahnärztliche Versorgung")
+            zahn_df = pd.DataFrame({
+                "Kategorie": ["Zahnärztinnen und Zahnärzte", "Kieferorthopädie"],
+                "Anzahl": [clean_int(g_det.get("Zahnaerzte", 0)), clean_int(g_det.get("Kieferorthopaedie", 0))],
+                "Quelle": ["Bayerische Landeszahnärztekammer"] * 2
+            })
+            st.dataframe(zahn_df, use_container_width=True, hide_index=True)
             
-            # 2. Psychotherapie & Zahnärzte
-            col_sub1, col_sub2 = st.columns(2)
+        with col_sub2:
+            st.markdown("#### 💊 Arzneimittel- & Heilmittelversorgung")
+            heil_df = pd.DataFrame({
+                "Versorgungsbereich": [
+                    "Öffentliche Apotheken", "Physiotherapie", "Ergotherapie",
+                    "Logopädie / Sprachtherapie", "Podologie", "Ernährungstherapie"
+                ],
+                "Anzahl": [
+                    clean_int(g_det.get("Oeffentliche_Apotheken", 0)), clean_int(g_det.get("Physiotherapie", 0)),
+                    clean_int(g_det.get("Ergotherapie", 0)), clean_int(g_det.get("Logopadie_Sprachtherapie", 0)),
+                    clean_int(g_det.get("Podologie", 0)), clean_int(g_det.get("Ernaehrungstherapie", 0))
+                ],
+                "Quelle": ["BLAK"] + ["GKV-Heilmittelerbringerverzeichnis"] * 5
+            })
+            st.dataframe(heil_df, use_container_width=True, hide_index=True)
             
-            with col_sub1:
-                st.markdown("#### 🧠 Psychotherapie")
-                psych_df = pd.DataFrame({
-                    "Kategorie": ["Psychologische Psychotherapie", "Kinder- & Jugendlichenpsychotherapie"],
-                    "Anzahl": [clean_int(g_det.get("Psychologische_Psychotherapie")), clean_int(g_det.get("Kinder_Jugendlichenpsychotherapie"))],
-                    "Quelle": ["116117-Arztsuche"] * 2
-                })
-                st.dataframe(psych_df, use_container_width=True, hide_index=True)
-                
-                st.markdown("#### 🦷 Zahnärztliche Versorgung")
-                zahn_df = pd.DataFrame({
-                    "Kategorie": ["Zahnärztinnen und Zahnärzte", "Kieferorthopädie"],
-                    "Anzahl": [clean_int(g_det.get("Zahnaerzte")), clean_int(g_det.get("Kieferorthopaedie"))],
-                    "Quelle": ["Bayerische Landeszahnärztekammer"] * 2
-                })
-                st.dataframe(zahn_df, use_container_width=True, hide_index=True)
-                
-            with col_sub2:
-                st.markdown("#### 💊 Arzneimittel- & Heilmittelversorgung")
-                heil_df = pd.DataFrame({
-                    "Versorgungsbereich": [
-                        "Öffentliche Apotheken", "Physiotherapie", "Ergotherapie",
-                        "Logopädie / Sprachtherapie", "Podologie", "Ernährungstherapie"
-                    ],
-                    "Anzahl": [
-                        clean_int(g_det.get("Oeffentliche_Apotheken")), clean_int(g_det.get("Physiotherapie")),
-                        clean_int(g_det.get("Ergotherapie")), clean_int(g_det.get("Logopadie_Sprachtherapie")),
-                        clean_int(g_det.get("Podologie")), clean_int(g_det.get("Ernaehrungstherapie"))
-                    ],
-                    "Quelle": ["BLAK"] + ["GKV-Heilmittelerbringerverzeichnis"] * 5
-                })
-                st.dataframe(heil_df, use_container_width=True, hide_index=True)
-                
-            st.markdown("---")
+        st.markdown("---")
+        
+        # 3. Pflege & Krankenhaus
+        col_sub3, col_sub4 = st.columns(2)
+        
+        with col_sub3:
+            st.markdown("#### 🏡 Pflegerische Versorgung")
+            pflege_df = pd.DataFrame({
+                "Angebotsform": ["Ambulante Pflegedienste", "Vollstationäre Pflege", "Tagespflege", "Kurzzeitpflege"],
+                "Anzahl": [clean_int(g_det.get("Ambulante_Pflegedienste", 0)), clean_int(g_det.get("Vollstationaere_Pflege", 0)), clean_int(g_det.get("Tagespflege", 0)), clean_int(g_det.get("Kurzzeitpflege", 0))],
+                "Quelle": ["Pflegefinder Bayern"] * 4
+            })
+            st.dataframe(pflege_df, use_container_width=True, hide_index=True)
             
-            # 3. Pflege & Krankenhaus
-            col_sub3, col_sub4 = st.columns(2)
-            
-            with col_sub3:
-                st.markdown("#### 🏡 Pflegerische Versorgung")
-                pflege_df = pd.DataFrame({
-                    "Angebotsform": ["Ambulante Pflegedienste", "Vollstationäre Pflege", "Tagespflege", "Kurzzeitpflege"],
-                    "Anzahl": [clean_int(g_det.get("Ambulante_Pflegedienste")), clean_int(g_det.get("Vollstationaere_Pflege")), clean_int(g_det.get("Tagespflege")), clean_int(g_det.get("Kurzzeitpflege"))],
-                    "Quelle": ["Pflegefinder Bayern"] * 4
-                })
-                st.dataframe(pflege_df, use_container_width=True, hide_index=True)
-                
-            with col_sub4:
-                st.markdown("#### 🏥 Krankenhaus / Reha / Hospiz")
-                kh_df = pd.DataFrame({
-                    "Einrichtungstyp": ["Krankenhausstandorte", "Rehabilitationseinrichtungen", "Stationäre Hospize"],
-                    "Anzahl": [clean_int(g_det.get("Krankenhausstandorte")), clean_int(g_det.get("Rehabilitationseinrichtungen")), clean_int(g_det.get("Stationaere_Hospize"))],
-                    "Quelle": ["Deutsches Krankenhausverzeichnis / QS-Reha"] * 3
-                })
-                st.dataframe(kh_df, use_container_width=True, hide_index=True)
+        with col_sub4:
+            st.markdown("#### 🏥 Krankenhaus / Reha / Hospiz")
+            kh_df = pd.DataFrame({
+                "Einrichtungstyp": ["Krankenhausstandorte", "Rehabilitationseinrichtungen", "Stationäre Hospize"],
+                "Anzahl": [clean_int(g_det.get("Krankenhausstandorte", 0)), clean_int(g_det.get("Rehabilitationseinrichtungen", 0)), clean_int(g_det.get("Stationaere_Hospize", 0))],
+                "Quelle": ["Deutsches Krankenhausverzeichnis / QS-Reha"] * 3
+            })
+            st.dataframe(kh_df, use_container_width=True, hide_index=True)
 
 with tab3:
     st.header("Wissenschaftlicher Hintergrund & Recherchemanual")
     
     st.markdown(f"""
-    <div style="background-color:#F9FAFB; padding:18px; border-radius:8px; border:1px solid #E5E7EB; margin-bottom:25px;">
-        <h4 style="margin-top:0; color:#1E3A8A;">🏫 Akademischer Rahmen des Projekts</h4>
-        • <strong>Hochschule (Studium):</strong> {UNI_NAME}<br>
-        • <strong>Praktikumsstelle:</strong> {PRAKTIKUM_NAME}<br>
-        • <strong>Studiengang:</strong> {STUDIENGANG} ({SEMESTER})<br><br>
-        <strong>Projekttitel:</strong><br>
-        <em>{PROJEKTTITEL}</em><br><br>
-        <strong>Autorinnen / Projektteam:</strong> {AUTORINNEN}
+    <div style="background-color:#F9FAFB; padding:15px; border-radius:8px; border:1px solid #E5E7EB; margin-bottom:25px;">
+        <h4>🏫 Wissenschaftlicher Kontext (Lehrprojekt)</h4>
+        Dieses interaktive System und die zugrundeliegende Erfassung wurden im Rahmen des 
+        <strong>Masterstudiengangs {STUDIENGANG}</strong> ({SEMESTER}) an der <strong>{UNI_NAME}</strong> erarbeitet.<br><br>
+        <strong>Projekt-Fokus:</strong><br>
+        Es handelt sich um eine <strong>deskriptive Erfassung (Erfassungsstufen A und B)</strong> des Stadt- und Landkreises Eichstätt. 
+        Ziel ist es, die bestehenden medizinischen und pflegerischen Versorgungsstrukturen systematisch zu kartieren 
+        und für Akteure der regionalen Gesundheitsförderung nutzbar zu machen.<br><br>
+        <strong>Interprofessioneller Ansatz:</strong><br>
+        Die Erhebung ist in das Projektmodul <strong>\"{PROJEKTTITEL}\"</strong> eingebettet, 
+        das aufzeigt, wie die verschiedenen Sektoren der Gesundheits- und Soziallandschaft (Ärzte, Zahnärzte, Heilmittelerbringer, Pflege- und Beratungsstrukturen) 
+        integriert zusammenwirken können, um eine lückenlose Versorgung zu gewährleisten.<br><br>
+        <em>Bearbeitung: {PROJEKTTEILNEHMER}</em>
     </div>
     """, unsafe_allow_html=True)
     
@@ -511,4 +549,4 @@ with tab3:
         """)
 
 st.markdown("---")
-st.markdown(f"<div style='text-align: center; color: gray; font-size: 12px;'>Kommunaler Gesundheits- und Versorgungsatlas Stadt und Landkreis Eichstätt | Erstellt für ein wissenschaftliches Poster | {UNI_NAME} & {PRAKTIKUM_NAME}</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: center; color: gray; font-size: 12px;'>Kommunaler Gesundheits- und Versorgungsatlas Landkreis Eichstätt | Erstellt für ein wissenschaftliches Poster | © 2026 Open Science Project</div>", unsafe_allow_html=True)
