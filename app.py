@@ -2,44 +2,36 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import numpy as np
-import os
 
 # ==============================================================================
-# KONFIGURATION / TITEL
+# 🎓 KONFIGURATION / PERSONALISIERUNG (HIER EINFACH ANPASSEN!)
 # ==============================================================================
-PAGE_TITLE = "Gesundheits- & Versorgungsatlas Stadt und Landkreis Eichstätt"
+UNI_NAME = "Katholische Stiftungshochschule München (KSH München)"                                      # Name Eurer Universität/Hochschule
+STUDIENGANG = "Angewandte Versorgungsforschung"         # Euer Studiengang
+SEMESTER = "Sommersemester 2026"                        # Das aktuelle Semester
+PROJEKTTITEL = "Quartiersmanagement aus interprofessioneller Perspektive"
+PROJEKTTEILNEHMER = "[Hier Eure Namen eintragen]"          # Eure Namen für die Bearbeitung
+
+# DATEINAMEN DER DATEN-DATEIEN
 XLSX_FILENAME = "versorgungsatlas_eichstaett_original_matrix.xlsx"
-CSV_OVERVIEW_FILENAME = "versorgungsatlas_eichstaett.csv"
 CSV_DETAILED_FILENAME = "versorgungsatlas_eichstaett_detailliert.csv"
-BENCHMARK_IMG = "versorgungsatlas_regionaler_benchmark.png"
+CSV_OVERVIEW_FILENAME = "versorgungsatlas_eichstaett_v2.csv"
+# ==============================================================================
 
 # Set page configurations
 st.set_page_config(
-    page_title=PAGE_TITLE,
+    page_title="Gesundheits- & Versorgungsatlas Eichstätt",
     page_icon="🩺",
     layout="wide",
     initial_sidebar_state="expanded"
 )
 
-# Load data helper with robust path resolution
+# Load data helper - Reads directly from the Excel Matrix!
 @st.cache_data
 def load_data():
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    
-    xlsx_path = os.path.join(script_dir, XLSX_FILENAME)
-    if not os.path.exists(xlsx_path):
-        xlsx_path = XLSX_FILENAME
-
-    csv_over_path = os.path.join(script_dir, CSV_OVERVIEW_FILENAME)
-    if not os.path.exists(csv_over_path):
-        csv_over_path = CSV_OVERVIEW_FILENAME
-
-    csv_det_path = os.path.join(script_dir, CSV_DETAILED_FILENAME)
-    if not os.path.exists(csv_det_path):
-        csv_det_path = CSV_DETAILED_FILENAME
-
-    if os.path.exists(xlsx_path):
-        df_over = pd.read_excel(xlsx_path, sheet_name="Gemeindeübersicht", header=3)
+    try:
+        # Primary: Read directly from Excel file (no CSVs required)
+        df_over = pd.read_excel(XLSX_FILENAME, sheet_name="Gemeindeübersicht", header=3)
         df_over = df_over[df_over['Gemeinde'].notna() & (~df_over['Gemeinde'].astype(str).str.contains('Gesamt'))]
         rename_map = {
             'Ärztliche Fachgebietseinträge': 'Aerztliche_Fachgebietseintraege',
@@ -50,16 +42,12 @@ def load_data():
         }
         df_over = df_over.rename(columns=rename_map)
         
-        df_det = pd.read_excel(xlsx_path, sheet_name="Detailmatrix Gemeinden", header=3)
+        df_det = pd.read_excel(XLSX_FILENAME, sheet_name="Detailmatrix Gemeinden", header=3)
         df_det = df_det[df_det['Gemeinde'].notna() & (~df_det['Gemeinde'].astype(str).str.contains('Gesamt'))]
-    elif os.path.exists(csv_over_path):
-        df_over = pd.read_csv(csv_over_path)
-        if os.path.exists(csv_det_path):
-            df_det = pd.read_csv(csv_det_path)
-        else:
-            df_det = df_over.copy()
-    else:
-        raise FileNotFoundError("Keine Datengrundlage gefunden (.xlsx oder .csv).")
+    except Exception:
+        # Fallback to CSVs if Excel file is not present
+        df_over = pd.read_csv(CSV_OVERVIEW_FILENAME)
+        df_det = pd.read_csv(CSV_DETAILED_FILENAME)
         
     df_over = df_over.fillna("")
     df_det = df_det.fillna("")
@@ -70,11 +58,12 @@ try:
 except Exception as e:
     st.error(f"""
     🚨 **Fehler beim Laden der Daten!**  
-    Die Datendateien wurden nicht gefunden. Bitte stellen Sie sicher, dass `{XLSX_FILENAME}` oder `{CSV_OVERVIEW_FILENAME}` im Repository liegen.
+    Die Excel-Matrix `{XLSX_FILENAME}` wurde im Repository nicht gefunden.  
+    **Lösung:** Bitte stellt sicher, dass die Datei `{XLSX_FILENAME}` in Euer GitHub-Repository hochgeladen wurde.
     """)
     st.stop()
 
-# Custom Styling - Clean, professional fonts and layout
+# Custom Styling
 st.markdown("""
     <style>
     .main-title {
@@ -88,10 +77,13 @@ st.markdown("""
         color: #4B5563;
         margin-bottom: 25px;
     }
-    .author-name {
-        font-size: 15px;
+    .badge-status {
+        background-color: #DEF7EC;
+        color: #03543F;
+        padding: 3px 8px;
+        border-radius: 12px;
         font-weight: bold;
-        color: #1E3A8A;
+        font-size: 12px;
     }
     </style>
 """, unsafe_allow_html=True)
@@ -99,22 +91,23 @@ st.markdown("""
 # SIDEBAR: Context & Info
 st.sidebar.image("https://img.icons8.com/clouds/150/hospital-room.png", width=100)
 st.sidebar.title("Versorgungsatlas")
-st.sidebar.markdown("**Stadt und Landkreis Eichstätt**")
+st.sidebar.markdown("**Landkreis Eichstätt (Oberbayern)**")
 
-# Academic & Project Info
+# Studentisches Infofeld in der Sidebar
 st.sidebar.markdown("""
-<div style="background-color:#F8FAFC; padding:14px; border-radius:6px; border:1px solid #CBD5E1; margin-bottom:15px; font-size: 13.5px; color:#1E293B;">
+<div style="background-color:#F8FAFC; padding:12px; border-radius:6px; border-left:4px solid #1E3A8A; margin-bottom:15px; font-size: 13px; color:#1E293B;">
     <strong>🎓 Akademischer Rahmen:</strong><br>
-    • <strong>Studium / Hochschule:</strong><br>Katholische Stiftungshochschule München (KSH München)<br>
-    • <strong>Praktikumsstelle:</strong><br>Katholische Universität Eichstätt-Ingolstadt (KU Eichstätt-Ingolstadt)<br>
-    • <strong>Verfasserinnen / Autorinnen:</strong><br><span class="author-name">Christina Papacek-Zimmermann B.Sc., Jennifer Zimmermann B.Sc.</span>
+    • <strong>Hochschule (Studium):</strong> Katholische Stiftungshochschule München (KSH München)<br>
+    • <strong>Praktikumsstelle:</strong> Katholische Universität Eichstätt-Ingolstadt (KU Eichstätt-Ingolstadt)<br>
+    • <strong>Autorinnen:</strong><br>
+    <span style="font-weight:bold; color:#1E3A8A;">Christina Papacek-Zimmermann B.Sc., Jennifer Zimmermann B.Sc.</span>
 </div>
 """, unsafe_allow_html=True)
 
-# Regional Structure Info
+# Structure Box with Exact Stichtag
 st.sidebar.markdown("""
-<div style="background-color:#EFF6FF; padding:12px; border-radius:6px; border-left:4px solid #3B82F6; margin-bottom:15px; font-size: 13px; color:#1E293B;">
-    <strong>📍 Strukturdaten Eichstätt:</strong><br>
+<div style="background-color:#EFF6FF; padding:12px; border-radius:5px; border-left:4px solid #3B82F6; margin-bottom:15px; font-size: 13px;">
+    <strong>📍 Steckbrief Landkreis Eichstätt:</strong><br>
     🏛️ <strong>Regierungsbezirk:</strong> Oberbayern<br>
     👥 <strong>Einwohner:</strong> 135.982<br>
     📅 <strong>Stichtag Einwohner:</strong> 31.12.2025<br>
@@ -124,78 +117,59 @@ st.sidebar.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Downloads Section
-st.sidebar.subheader("📥 Downloads")
+# SINGLE EXCEL DOWNLOAD BUTTON (as explicitly requested)
+st.sidebar.subheader("📥 Daten-Download")
 
-script_dir = os.path.dirname(os.path.abspath(__file__))
-xlsx_download_path = os.path.join(script_dir, XLSX_FILENAME)
-if not os.path.exists(xlsx_download_path):
-    xlsx_download_path = XLSX_FILENAME
-
-if os.path.exists(xlsx_download_path):
-    try:
-        with open(xlsx_download_path, "rb") as fp:
-            st.sidebar.download_button(
-                label="📊 Original Excel-Matrix (.xlsx) herunterladen",
-                data=fp,
-                file_name=XLSX_FILENAME,
-                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                help="Vollständige Arbeitsmappe mit Steckbrief, Gemeindeübersicht & Detailmatrix"
-            )
-    except Exception:
-        pass
-
-csv_download_path = os.path.join(script_dir, CSV_OVERVIEW_FILENAME)
-if not os.path.exists(csv_download_path):
-    csv_download_path = CSV_OVERVIEW_FILENAME
-
-if os.path.exists(csv_download_path):
-    try:
-        with open(csv_download_path, "rb") as fp:
-            st.sidebar.download_button(
-                label="📄 Datenübersicht (CSV) herunterladen",
-                data=fp,
-                file_name=CSV_OVERVIEW_FILENAME,
-                mime="text/csv"
-            )
-    except Exception:
-        pass
+try:
+    with open(XLSX_FILENAME, "rb") as fp:
+        st.sidebar.download_button(
+            label="📊 Original Excel-Matrix (.xlsx) herunterladen",
+            data=fp,
+            file_name=XLSX_FILENAME,
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            help="Enthält die vollständige Arbeitsmappe mit Steckbrief, Gemeindeübersicht, Detailmatrix aller Fachgebietseinträge & Recherchemanual"
+        )
+except Exception:
+    st.sidebar.warning("Excel-Matrix-Datei nicht gefunden.")
 
 st.sidebar.markdown("""
 ---
-✉️ **Anfragen / Kontakt:**  
+📄 **Gedruckter Versorgungsatlas (PDF):**  
+Den vollständigen Atlas mit allen 30 Detailblättern können Sie über den QR-Code auf unserem Poster herunterladen.
+
+✉️ **Forschungsanfragen / Original-Datensatz:**  
 _Kontaktieren Sie das Autorenteam direkt am Poster oder per E-Mail._
 """)
 
-# MAIN PAGE HEADER
+# MAIN PAGE
 st.markdown('<div class="main-title">Gesundheits- & Versorgungsatlas</div>', unsafe_allow_html=True)
-st.markdown('<div class="subtitle">Interaktives Informationssystem zur medizinischen und pflegerischen Infrastruktur in Stadt und Landkreis Eichstätt</div>', unsafe_allowed_html=False)
+st.markdown('<div class="subtitle">Interaktives Informationssystem zur medizinischen und pflegerischen Infrastruktur in Stadt und Landkreis Eichstätt</div>', unsafe_allow_html=True)
 
-# Header info line for authors and institutions
 st.markdown("""
 <div style="background-color:#F1F5F9; padding:12px 16px; border-radius:6px; margin-bottom:20px; font-size:14px; color:#334155; border-left:4px solid #1E3A8A;">
-    <strong>🎓 Projekt der Katholischen Stiftungshochschule München (KSH München)</strong> | <strong>Praktikumsstelle: Katholische Universität Eichstätt-Ingolstadt (KU Eichstätt-Ingolstadt)</strong><br>
+    <strong>🎓 Wissenschaftliches Projekt</strong> | 
+    <strong>Hochschule (Studium):</strong> Katholische Stiftungshochschule München (KSH München) | 
+    <strong>Praktikumsstelle:</strong> Katholische Universität Eichstätt-Ingolstadt (KU Eichstätt-Ingolstadt)<br>
     <strong>Autorinnen / Projektteam:</strong> <span style="font-weight:bold; color:#1E3A8A;">Christina Papacek-Zimmermann B.Sc., Jennifer Zimmermann B.Sc.</span>
 </div>
 """, unsafe_allow_html=True)
 
-# TABS DEFINITION
-tab1, tab2, tab3 = st.tabs(["📊 Dashboard & Regionalvergleich", "🔍 Gemeinde-Steckbriefe (Detailübersicht)", "📘 Recherchemanual & Methodik"])
 
-# ==============================================================================
-# TAB 1: DASHBOARD & REGIONALVERGLEICH
-# ==============================================================================
+# Tabs
+tab1, tab2, tab3 = st.tabs(["📊 Dashboard & Landkreis-Steckbrief", "🔍 Gemeinde-Steckbriefe (Detailansicht)", "📘 Recherchemanual & Methodik"])
+
 with tab1:
-    st.header("Landkreis-Steckbrief & Regionaler Überblick")
+    st.header("Landkreis-Steckbrief (Blatt 01) & Regionaler Überblick")
     
+    # Steckbrief Grid
     col_sb1, col_sb2 = st.columns([1, 2])
     
     with col_sb1:
         st.markdown("""
         <div style="background-color:#F8FAFC; padding:18px; border-radius:8px; border:1px solid #CBD5E1;">
-            <h4 style="margin-top:0; color:#1E3A8A;">📌 Strukturdaten Stadt und Landkreis Eichstätt</h4>
+            <h4 style="margin-top:0; color:#1E3A8A;">📌 Landkreis-Steckbrief (Blatt 01)</h4>
             <table style="width:100%; font-size:14px; border-collapse:collapse;">
-                <tr style="border-bottom:1px solid #E2E8F0;"><td style="padding:6px 0;"><strong>Untersuchungsraum:</strong></td><td>Stadt und Landkreis Eichstätt</td></tr>
+                <tr style="border-bottom:1px solid #E2E8F0;"><td style="padding:6px 0;"><strong>Untersuchungsraum:</strong></td><td>Landkreis Eichstätt</td></tr>
                 <tr style="border-bottom:1px solid #E2E8F0;"><td style="padding:6px 0;"><strong>Regierungsbezirk:</strong></td><td>Oberbayern</td></tr>
                 <tr style="border-bottom:1px solid #E2E8F0;"><td style="padding:6px 0;"><strong>Einwohner:</strong></td><td><strong>135.982</strong></td></tr>
                 <tr style="border-bottom:1px solid #E2E8F0;"><td style="padding:6px 0;"><strong>Einwohner – Stichtag:</strong></td><td><span style="color:#2563EB; font-weight:bold;">31.12.2025</span></td></tr>
@@ -209,11 +183,9 @@ with tab1:
         """, unsafe_allow_html=True)
         
     with col_sb2:
+        # Aggregated stats metrics
         def safe_sum(df, col):
-            try:
-                return int(pd.to_numeric(df[col], errors='coerce').fillna(0).sum())
-            except Exception:
-                return 0
+            return int(pd.to_numeric(df[col], errors='coerce').fillna(0).sum())
 
         tot_einwohner = safe_sum(df_overview, "Einwohner")
         tot_aerzte = safe_sum(df_overview, "Aerztliche_Fachgebietseintraege")
@@ -223,7 +195,7 @@ with tab1:
         tot_heilmittel = safe_sum(df_overview, "Heilmittelpraxen")
         tot_pflege = safe_sum(df_overview, "Pflegeeinrichtungen_Dienste")
         
-        st.markdown("#### 📊 Überblick über alle erfassten Angebote (Summe aller 30 Gemeinden)")
+        st.markdown("#### 📊 Aggregierte Gesamtstruktur im Landkreis Eichstätt")
         m_col1, m_col2, m_col3 = st.columns(3)
         m_col1.metric("🩺 Fachgebietseinträge gesamt", tot_aerzte)
         m_col2.metric("🧠 Psychotherapeuten gesamt", tot_psych)
@@ -236,9 +208,9 @@ with tab1:
         
     st.markdown("---")
     
-    # Regional / Landkreisweite Versorgungsstrukturen Table
+    # Regional / Landkreisweite Versorgungsstrukturen
     st.subheader("Landkreisweite, regionale und koordinierende Versorgungsstrukturen")
-    st.markdown("_Gemäß Erfassungsmethodik werden gemeindeübergreifend koordinierte Strukturen auf Landkreisebene geführt:_")
+    st.markdown("_Gemäß Erfassungsmethodik (Blatt 01) werden gemeindeübergreifend koordinierte Strukturen auf Landkreisebene geführt:_")
     
     landkreis_table = pd.DataFrame([
         {"Versorgungsbereich": "Öffentlicher Gesundheitsdienst", "Akteur / Angebot": "Gesundheitsamt Eichstätt", "Standort / Träger": "Landratsamt Eichstätt", "Funktion / Versorgungsform": "Öffentlicher Gesundheitsdienst", "Räumlicher Bezug": "Landkreisweit", "Standardquelle": "Website Gesundheitsamt Eichstätt"},
@@ -257,7 +229,7 @@ with tab1:
     
     st.markdown("---")
     
-    # Interactive comparison chart of the 30 municipalities
+    # Interactive comparison chart
     st.subheader("Verteilungsanalyse der 30 Gemeinden")
     indicator_mapping = {
         "Ärztliche Fachgebietseinträge": "Aerztliche_Fachgebietseintraege",
@@ -295,56 +267,39 @@ with tab1:
 
     st.markdown("---")
 
-    # BENCHMARK GRAPHIC & SOURCES
-    st.subheader("📍 Regionaler Benchmark-Vergleich (Stadt und Landkreis Eichstätt vs. Bayern)")
+    # CLEAN BAYERN BENCHMARK GRAPHIC & SOURCES (UNIFORM LEVEL: BAYERN ONLY)
+    st.subheader("📍 Regionaler Benchmark-Vergleich (Landkreis Eichstätt vs. Bayern)")
     st.markdown("""
     _Methode: Um eine methodisch saubere Gegenüberstellung ohne Durchmischung von Bundes- und Landesebene zu gewährleisten, werden die Erfassungswerte des Landkreises Eichstätt einheitlich dem **Landesdurchschnitt Bayern** gegenübergestellt._
     """)
 
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    bench_img_path = os.path.join(script_dir, BENCHMARK_IMG)
-    if not os.path.exists(bench_img_path):
-        bench_img_path = BENCHMARK_IMG
+    benchmark_df = pd.DataFrame([
+        {"Versorgungsindikator": "Öffentliche Apotheken (je 100k Einw.)", "Landkreis Eichstätt": 15.4, "Bayern-Durchschnitt": 20.2},
+        {"Versorgungsindikator": "Ambulante Ärzt/innen & Psych. (je 100k Einw.)", "Landkreis Eichstätt": 157.4, "Bayern-Durchschnitt": 198.4},
+        {"Versorgungsindikator": "Zahnärztliche Personen (je 100k Einw.)", "Landkreis Eichstätt": 18.4, "Bayern-Durchschnitt": 87.2}
+    ])
 
-    if os.path.exists(bench_img_path):
-        st.image(bench_img_path, use_container_width=True, caption="Abbildung: Regionaler Benchmark-Vergleich – Versorgungsdichten je 100.000 Einwohner (Eichstätt vs. Bayern Ø)")
-    else:
-        # Fallback Plotly chart if PNG is missing
-        benchmark_df = pd.DataFrame([
-            {"Versorgungsindikator": "Öffentliche Apotheken (je 100k Einw.)", "Landkreis Eichstätt": 15.4, "Bayern-Durchschnitt": 20.2},
-            {"Versorgungsindikator": "Ambulante Ärzt/innen & Psych. (je 100k Einw.)", "Landkreis Eichstätt": 171.3, "Bayern-Durchschnitt": 198.4},
-            {"Versorgungsindikator": "Zahnärztliche Personen (je 100k Einw.)", "Landkreis Eichstätt": 19.1, "Bayern-Durchschnitt": 87.2}
-        ])
+    fig_bench = px.bar(
+        benchmark_df,
+        x="Versorgungsindikator",
+        y=["Landkreis Eichstätt", "Bayern-Durchschnitt"],
+        barmode="group",
+        title="Versorgungsdichte je 100.000 Einwohner im Vergleich zum Landesdurchschnitt Bayern",
+        color_discrete_map={"Landkreis Eichstätt": "#2563EB", "Bayern-Durchschnitt": "#94A3B8"},
+        height=380
+    )
+    fig_bench.update_traces(texttemplate='%{y}', textposition='outside')
+    fig_bench.update_layout(plot_bgcolor='white', paper_bgcolor='white', yaxis=dict(gridcolor='#E2E8F0'), legend_title_text="")
+    st.plotly_chart(fig_bench, use_container_width=True)
 
-        fig_bench = px.bar(
-            benchmark_df,
-            x="Versorgungsindikator",
-            y=["Landkreis Eichstätt", "Bayern-Durchschnitt"],
-            barmode="group",
-            title="Versorgungsdichte je 100.000 Einwohner im Vergleich zum Landesdurchschnitt Bayern",
-            color_discrete_map={"Landkreis Eichstätt": "#2563EB", "Bayern-Durchschnitt": "#94A3B8"},
-            height=380
-        )
-        fig_bench.update_traces(texttemplate='%{y}', textposition='outside')
-        fig_bench.update_layout(plot_bgcolor='white', paper_bgcolor='white', yaxis=dict(gridcolor='#E2E8F0'))
-        st.plotly_chart(fig_bench, use_container_width=True)
-
-    st.markdown("""
+    st.caption("""
     📌 **Quellen und Stichtagsnachweis der Referenzdaten:**
-    * **Einwohnerzahl Stichtag:** 31.12.2025 – Bayerisches Landesamt für Statistik (LfStat Bayern). Homepage: [www.statistik.bayern.de](https://www.statistik.bayern.de) *(abgerufen am 13.09.2026)*.
-    * **Statistisches Bundesamt (Destatis):** Apothekendichte & Arzneimittelversorgung (Pressemitteilung 2024). Homepage: [www.destatis.de](https://www.destatis.de) *(abgerufen am 13.09.2026)*.
-    * **Öffentliche Apotheken:** Bayerische Landesapothekerkammer (BLAK) & ABDA (Stand 2024/2025: 2.744 Apotheken in Bayern = 20,2 je 100k Einw.). Homepages: [www.blak.de](https://www.blak.de) & [www.abda.de](https://www.abda.de) *(abgerufen am 13.09.2026)*.
-    * **Ambulante Ärztliche Versorgung:** Kassenärztliche Vereinigung Bayerns (KVB Versorgungsatlas Hausärzte & KVB-Arztregister, Stand August 2026: 72,8 Hausärzt/innen je 100k Einw.). Homepage: [www.kvb.de/ueber-uns/versorgungsatlas/](https://www.kvb.de/ueber-uns/versorgungsatlas/) *(abgerufen am 13.09.2026)*.
-    * **Psychotherapeutische Versorgung:** Kassenärztliche Vereinigung Bayerns (KVB Bedarfsplanungsdaten & 116117-Arztsuche). Homepage: [www.kvb.de](https://www.kvb.de) *(abgerufen am 13.09.2026)*.
-    * **Zahnärztliche Versorgung:** Bayerische Landeszahnärztekammer (BLZK) & Bundeszahnärztekammer (BZÄK Zahnarztsuche / Mitgliederstatistik). Homepages: [www.blzk.de](https://www.blzk.de) & [www.bzaek.de](https://www.bzaek.de) *(abgerufen am 13.09.2026)*.
-    * **Heilmittelpraxen:** GKV-Spitzenverband (GKV-Heilmittelerbringerverzeichnis) & Amtliche Gesundheitsberichterstattung des Bundes (GBE Bund). Homepages: [www.gkv-heilmittel.de](https://www.gkv-heilmittel.de) & [www.gbe-bund.de](https://www.gbe-bund.de) *(abgerufen am 13.09.2026)*.
-    * **Pflegerische Versorgung:** Bayerisches Landesamt für Statistik (LfStat Bayern, Zweijährliche Pflegestatistik 12/2023) & Pflegefinder Bayern. Homepage: [www.statistik.bayern.de](https://www.statistik.bayern.de) *(abgerufen am 13.09.2026)*.
-    * **Krankenhaus- & Rehabilitationsversorgung:** Bayerisches Staatsministerium für Gesundheit, Pflege und Prävention (StMGP Krankenhausplan Bayern) & Deutsches Krankenhausverzeichnis. Homepages: [www.stmgp.bayern.de](https://www.stmgp.bayern.de) & [www.deutsches-krankenhaus-verzeichnis.de](https://www.deutsches-krankenhaus-verzeichnis.de) *(abgerufen am 13.09.2026)*.
+    * **Einwohnerzahl Stichtag:** 31.12.2025 (Bayerisches Landesamt für Statistik).
+    * **Öffentliche Apotheken:** Bayerische Landesapothekerkammer (BLAK, Stand 2024/2025: 2.744 Apotheken in Bayern = 20,2 je 100k Einw.).
+    * **Ambulante Ärztliche Versorgung:** Kassenärztliche Vereinigung Bayerns (KVB Versorgungsatlas, Stand 2024/2025: ca. 198,4 je 100k Einw.).
+    * **Zahnärztliche Versorgung:** Bayerische Landeszahnärztekammer (BLZK, Stand 2024/2025: ca. 87,2 aktiv behandelnde Zahnärzt/innen je 100k Einw.). *Hinweis: Die Abweichung bei den Zahnärzten im Landkreis resultiert aus dem im Recherchemanual beschriebenen Opt-In-Verfahren der Kammerregister.*
     """)
 
-# ==============================================================================
-# TAB 2: GEMEINDESPEZIPISCHE DETAIL-STECKBRIEFE
-# ==============================================================================
 with tab2:
     st.header("Gemeindespezifische Detail-Steckbriefe")
     
@@ -365,19 +320,19 @@ with tab2:
                 return default
             return s
 
-        try:
-            einwohner_val = f"{int(float(g_det['Einwohner'])):,}".replace(",", ".")
-        except Exception:
-            einwohner_val = str(g_det['Einwohner'])
+        einwohner_val = f"{int(g_det['Einwohner']):,}".replace(",", ".") if str(g_det['Einwohner']).isdigit() else str(g_det['Einwohner'])
         
         st.markdown(f"""
-        <div style="background-color:#F8FAFC; padding:16px; border-radius:8px; border:1px solid #E2E8F0; font-size:14px; color:#1E293B;">
+        <div style="background-color:#F8FAFC; padding:15px; border-radius:8px; border:1px solid #E2E8F0; font-size:13.5px;">
             👥 <strong>Einwohnerzahl:</strong> {einwohner_val} Einwohner<br>
             📐 <strong>Fläche:</strong> {clean_val(g_det['Flaeche_km2'])} km² ({clean_val(g_det['Einwohner_je_km2'])} Einw./km²)<br>
             🏛️ <strong>Gemeindeart:</strong> {clean_val(g_det['Gemeindeart'])}<br>
             🏢 <strong>Verwaltungsgemeinschaft:</strong> {clean_val(g_det['Verwaltungsgemeinschaft'])}<br>
             🏛️ <strong>Rathaus:</strong> {clean_val(g_det['Rathaus'])}<br>
-            🌐 <strong>Website:</strong> <a href="{clean_val(g_det['Website'])}" target="_blank">{clean_val(g_det['Website'])}</a>
+            🌐 <strong>Website:</strong> <a href="{clean_val(g_det['Website'])}" target="_blank">{clean_val(g_det['Website'])}</a><br>
+            👤 <strong>Bearbeiter/in:</strong> {clean_val(g_det['Bearbeiter'])}<br>
+            📅 <strong>Letzte Prüfung:</strong> {clean_val(g_det['Letzte_Pruefung'])}<br>
+            ✅ <strong>Erhebungsstatus:</strong> <span class="badge-status">{clean_val(g_det['Erhebungsstatus'])}</span>
         </div>
         """, unsafe_allow_html=True)
         
@@ -482,23 +437,23 @@ with tab2:
             })
             st.dataframe(kh_df, use_container_width=True, hide_index=True)
 
-# ==============================================================================
-# TAB 3: RECHERCHEMANUAL & METHODIK
-# ==============================================================================
 with tab3:
     st.header("Wissenschaftlicher Hintergrund & Recherchemanual")
     
-    st.markdown("""
-    <div style="background-color:#F9FAFB; padding:18px; border-radius:8px; border:1px solid #E5E7EB; margin-bottom:25px; color:#1E293B;">
-        <h4 style="margin-top:0; color:#1E3A8A;">🏫 Akademischer Rahmen des Projektes</h4>
-        <strong>Projekt-Titel:</strong><br>
-        <em>Quartiersmanagement aus interprofessioneller Perspektive: Versorgungsformen und -strukturen von Stadt und Landkreis Eichstätt – Eine explorative Mixed-Methods-Studie</em><br><br>
-        <strong>Hochschule (Studium):</strong> Katholische Stiftungshochschule München (KSH München)<br>
-        <strong>Praktikumsstelle / Praxispartner:</strong> Katholische Universität Eichstätt-Ingolstadt (KU Eichstätt-Ingolstadt)<br>
-        <strong>Verfasserinnen / Autorinnen:</strong> <span style="font-weight:bold; color:#1E3A8A;">[Hier Eure Namen eintragen]</span><br><br>
+    st.markdown(f"""
+    <div style="background-color:#F9FAFB; padding:15px; border-radius:8px; border:1px solid #E5E7EB; margin-bottom:25px;">
+        <h4>🏫 Wissenschaftlicher Kontext (Lehrprojekt)</h4>
+        Dieses interaktive System und die zugrundeliegende Erfassung wurden im Rahmen des 
+        <strong>Masterstudiengangs {STUDIENGANG}</strong> ({SEMESTER}) an der <strong>{UNI_NAME}</strong> erarbeitet.<br><br>
         <strong>Projekt-Fokus:</strong><br>
-        Systematische, deskriptive Bestandsaufnahme und Kartierung der medizinischen und pflegerischen Infrastruktur in Stadt und Landkreis Eichstätt.
-        Ziel ist es, bestehende Versorgungsstrukturen transparent abzubilden und Potenziale für die regionale Gesundheitsförderung und interprofessionelle Vernetzung aufzuzeigen.
+        Es handelt sich um eine <strong>deskriptive Erfassung (Erfassungsstufen A und B)</strong> des Stadt- und Landkreises Eichstätt. 
+        Ziel ist es, die bestehenden medizinischen und pflegerischen Versorgungsstrukturen systematisch zu kartieren 
+        und für Akteure der regionalen Gesundheitsförderung nutzbar zu machen.<br><br>
+        <strong>Interprofessioneller Ansatz:</strong><br>
+        Die Erhebung ist in das Projektmodul <strong>\"{PROJEKTTITEL}\"</strong> eingebettet, 
+        das aufzeigt, wie die verschiedenen Sektoren der Gesundheits- und Soziallandschaft (Ärzte, Zahnärzte, Heilmittelerbringer, Pflege- und Beratungsstrukturen) 
+        integriert zusammenwirken können, um eine lückenlose Versorgung zu gewährleisten.<br><br>
+        <em>Bearbeitung: {PROJEKTTEILNEHMER}</em>
     </div>
     """, unsafe_allow_html=True)
     
@@ -513,7 +468,7 @@ with tab3:
         st.subheader("1. Zentrale Zählregeln & Datenquellen")
         st.markdown("""
         *   **Ärztliche Versorgung (Fachgebietseinträge):** Erfasst über die *116117-Arztsuche/KVB*. Mehrfach qualifizierte Ärzte werden in jedem Fachgebiet gezählt, um das tatsächliche Spektrum abzubilden. Praxis- und MVZ-Strukturen selbst werden nicht rekonstruiert.
-        *   **Psychotherapie:** Erfasst über die *116117-Arztsuche/KVB*. Psychologische Psychotherapie und Kinder- und Jugendlichenpsychotherapie werden getrennt erhoben.
+        *   **Psychotherapie:** Erfasst über die *116117-Arztsuche/KVB*. Psychologische Psychotherapie und Kinder- und Jugendlichenpsychotherapeutinnen und -psychotherapeuten werden getrennt erhoben.
         *   **Zahnärztliche Versorgung:** Erfasst über die *Bayerische Landeszahnärztekammer*. Keine Rekonstruktion von Praxisorganisationen.
         *   **Öffentliche Apotheken:** Erfasst über die *Bayerische Landesapothekerkammer*. Jede örtliche Betriebsstätte zählt (einschließlich Filialen).
         *   **Heilmittelpraxen:** Erfasst über das *GKV-Heilmittelerbringerverzeichnis*. Zugelassene Betriebsstätten je Bereich (Physiotherapie, Ergotherapie, Logopädie, Podologie, Ernährung).
@@ -528,6 +483,5 @@ with tab3:
         *   **Deskriptive Bestandsaufnahme:** Der Atlas untersucht ausschließlich das *Vorhandensein* (Bestand) von Strukturen und ist keine Bedarfsplanung (keine Bedarfsdeckungs- oder Erreichbarkeitsanalyse).
         """)
 
-# FOOTER
 st.markdown("---")
-st.markdown("<div style='text-align: center; color: #64748B; font-size: 13px;'>Kommunaler Gesundheits- und Versorgungsatlas Stadt und Landkreis Eichstätt | KSH München & KU Eichstätt-Ingolstadt | © 2026 Open Science Project</div>", unsafe_allow_html=True)
+st.markdown("<div style='text-align: center; color: gray; font-size: 12px;'>Kommunaler Gesundheits- und Versorgungsatlas Landkreis Eichstätt | Erstellt für ein wissenschaftliches Poster | © 2026 Open Science Project</div>", unsafe_allow_html=True)
