@@ -468,6 +468,7 @@ with tab3:
         *   **Heilmittelpraxen:** Erfasst über das *GKV-Heilmittelerbringerverzeichnis*. Zugelassene Betriebsstätten je Bereich (Physiotherapie, Ergotherapie, Logopädie, Podologie, Ernährung).
         *   **Pflegerische Versorgung:** Erfasst über den *Pflegefinder Bayern*. Ambulante Dienste, vollstationäre Einrichtungen, Tagespflege und Kurzzeitpflege werden getrennt gezählt.
         *   **Ergänzende Eigenrecherche (Gemeinde-Homepages):** Neben den offiziellen Kammer- und Verzeichnisregistern wurden systematisch die einzelnen Homepages der 30 Gemeinden herangezogen, um registerbedingte Lücken (z. B. durch Opt-In-Verfahren) gezielt zu schließen und eine möglichst vollständige Vor-Ort-Erfassung zu gewährleisten.
+        *   **Gemeindeteile & Ortsteile:** Erfasst und verifiziert über das *BayernPortal* (Verwaltungsservice Bayern) zur strukturierten Abbildung der jeweiligen Gemeindegliederung.
         """)
 
         
