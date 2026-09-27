@@ -173,7 +173,7 @@ _Kontaktieren Sie die Autorinnen direkt am Poster oder per E-Mail._
 """)
 
 # MAIN PAGE
-st.markdown('<div class="main-title">Gesundheits- & Versorgungsatlas</div>', unsafe_allow_html=True)
+st.markdown('<div class="main-title">Versorgungsatlas</div>', unsafe_allow_html=True)
 st.markdown('<div class="subtitle">Interaktives Informationssystem zur medizinischen und pflegerischen Infrastruktur in Stadt und Landkreis Eichstätt</div>', unsafe_allow_html=True)
 
 # Header info line for authors and institutions
