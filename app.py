@@ -16,7 +16,7 @@ STUDIENGANG = "Angewandte Versorgungsforschung"
 SEMESTER = "Sommersemester 2026"
 PROJEKTTITEL = (
     "Versorgungsformen und -strukturen von Stadt und Landkreis Eichstätt – "
-    "Perspektiven für Quartiersmanagement und lokale Versorgungsentwicklung." 
+    "Perspektiven für Quartiersmanagement und lokale Versorgungsentwicklung. " 
     "Ergebnisse einer explorativ-deskriptiven Analyse"
 )
 
