@@ -15,9 +15,9 @@ PRAKTIKUM_NAME = "Katholische Universität Eichstätt-Ingolstadt (KU Eichstätt-
 STUDIENGANG = "Angewandte Versorgungsforschung"
 SEMESTER = "Sommersemester 2026"
 PROJEKTTITEL = (
-    "Quartiersmanagement aus interprofessioneller Perspektive: "
     "Versorgungsformen und -strukturen von Stadt und Landkreis Eichstätt – "
-    "Eine explorative Mixed-Methods-Studie"
+    "Perspektiven für Quartiersmanagement und lokale Versorgungsentwicklung" 
+    "Ergebnisse einer explorativ-deskriptiven Analyse"
 )
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__)) if '__file__' in globals() else os.getcwd()
@@ -30,7 +30,7 @@ BENCHMARK_IMG_PATH = os.path.join(BASE_DIR, "versorgungsatlas_regionaler_benchma
 
 # Set page configurations
 st.set_page_config(
-    page_title="Gesundheits- & Versorgungsatlas Eichstätt",
+    page_title="Eigenständig erhobener Versorgungsatlas Stadt & Landkreis Eichstätt",
     page_icon="🩺",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -49,7 +49,7 @@ def load_data():
                 'Zahnärztliche Personen': 'Zahnaerztliche_Personen',
                 'Öffentliche Apotheken': 'Oeffentliche_Apotheken',
                 'Pflegeeinrichtungen / -dienste': 'Pflegeeinrichtungen_Dienste',
-                'Krankenhaus / Reha / Hospiz': 'Krankenhaus_Reha_Hospiz'
+                'Krankenhaus / Reha': 'Krankenhaus_Reha'
             }
             df_o = df_o.rename(columns=rename_map)
             
@@ -84,7 +84,7 @@ df_overview, df_detailed = load_data()
 
 # Ensure numeric columns
 num_cols = ["Einwohner", "Aerztliche_Fachgebietseintraege", "Psychotherapie", "Zahnaerztliche_Personen", 
-            "Oeffentliche_Apotheken", "Heilmittelpraxen", "Pflegeeinrichtungen_Dienste", "Krankenhaus_Reha_Hospiz"]
+            "Oeffentliche_Apotheken", "Heilmittelpraxen", "Pflegeeinrichtungen_Dienste", "Krankenhaus_Reha"]
 for col in num_cols:
     if col in df_overview.columns:
         df_overview[col] = pd.to_numeric(df_overview[col], errors='coerce').fillna(0)
@@ -169,7 +169,7 @@ else:
 st.sidebar.markdown("""
 ---
 ✉️ **Anfragen / Kontakt:**  
-_Kontaktieren Sie das Autorenteam direkt am Poster oder per E-Mail._
+_Kontaktieren Sie das Autorinnen direkt am Poster oder per E-Mail._
 """)
 
 # MAIN PAGE
@@ -180,7 +180,7 @@ st.markdown('<div class="subtitle">Interaktives Informationssystem zur medizinis
 st.markdown(f"""
 <div style="background-color:#F1F5F9; padding:12px 16px; border-radius:6px; margin-bottom:20px; font-size:14px; color:#334155; border-left:4px solid #1E3A8A;">
     <strong>🎓 Wissenschaftliches Projekt der {UNI_NAME}</strong> | <strong>Praktikumsstelle: {PRAKTIKUM_NAME}</strong><br>
-    <strong>Autorinnen / Projektteam:</strong> <span style="font-weight:bold; color:#1E3A8A;">{AUTORINNEN}</span>
+    <strong>Autorinnen:</strong> <span style="font-weight:bold; color:#1E3A8A;">{AUTORINNEN}</span>
 </div>
 """, unsafe_allow_html=True)
 
@@ -223,7 +223,7 @@ with tab1:
         tot_heilmittel = safe_sum(df_overview, "Heilmittelpraxen")
         tot_pflege = safe_sum(df_overview, "Pflegeeinrichtungen_Dienste")
         
-        st.markdown("#### 📊 Aggregierte Gesamtstruktur im Landkreis Eichstätt")
+        st.markdown("#### 📊 Erhobene Gesamtstruktur im Landkreis Eichstätt")
         m_col1, m_col2, m_col3 = st.columns(3)
         m_col1.metric("🩺 Fachgebietseinträge gesamt", tot_aerzte)
         m_col2.metric("🧠 Psychotherapeuten gesamt", tot_psych)
@@ -484,7 +484,7 @@ with tab3:
         Die Erhebung ist in das Projektmodul <strong>"{PROJEKTTITEL}"</strong> eingebettet, 
         das aufzeigt, wie die verschiedenen Sektoren der Gesundheits- und Soziallandschaft (Ärzte, Zahnärzte, Heilmittelerbringer, Pflege- und Beratungsstrukturen) 
         integriert zusammenwirken können, um eine lückenlose Versorgung zu gewährleisten.<br><br>
-        <em>Autorinnen / Projektteam: {AUTORINNEN}</em>
+        <em>Autorinnen: {AUTORINNEN}</em>
     </div>
     """, unsafe_allow_html=True)
     
@@ -504,7 +504,9 @@ with tab3:
         *   **Öffentliche Apotheken:** Erfasst über die *Bayerische Landesapothekerkammer*. Jede örtliche Betriebsstätte zählt (einschließlich Filialen).
         *   **Heilmittelpraxen:** Erfasst über das *GKV-Heilmittelerbringerverzeichnis*. Zugelassene Betriebsstätten je Bereich (Physiotherapie, Ergotherapie, Logopädie, Podologie, Ernährung).
         *   **Pflegerische Versorgung:** Erfasst über den *Pflegefinder Bayern*. Ambulante Dienste, vollstationäre Einrichtungen, Tagespflege und Kurzzeitpflege werden getrennt gezählt.
+        *   **Ergänzende Eigenrecherche (Gemeinde-Homepages):** Neben den offiziellen Kammer- und Verzeichnisregistern wurden systematisch die einzelnen Homepages der 30 Gemeinden herangezogen, um registerbedingte Lücken (z. B. durch Opt-In-Verfahren) gezielt zu schließen und eine möglichst vollständige Vor-Ort-Erfassung zu gewährleisten.
         """)
+
         
     with col_b:
         st.subheader("2. Methodische Abgrenzung & Logik des Rettungsdienstes")
