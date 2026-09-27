@@ -169,7 +169,7 @@ else:
 st.sidebar.markdown("""
 ---
 ✉️ **Anfragen / Kontakt:**  
-_Kontaktieren Sie das Autorinnen direkt am Poster oder per E-Mail._
+_Kontaktieren Sie die Autorinnen direkt am Poster oder per E-Mail._
 """)
 
 # MAIN PAGE
@@ -293,43 +293,6 @@ with tab1:
 
     st.markdown("---")
 
-    # BENCHMARK GRAPHIC & SOURCES
-    st.subheader("📍 Regionaler Benchmark-Vergleich (Landkreis Eichstätt vs. Bayern)")
-    st.markdown("""
-    _Methode: Um eine methodisch saubere Gegenüberstellung ohne Durchmischung von Bundes- und Landesebene zu gewährleisten, werden die Erfassungswerte des Landkreises Eichstätt einheitlich dem **Landesdurchschnitt Bayern** gegenübergestellt._
-    """)
-
-    # Render image if file exists, otherwise render Plotly chart directly!
-    if os.path.exists(BENCHMARK_IMG_PATH):
-        st.image(BENCHMARK_IMG_PATH, caption="Regionaler Benchmark-Vergleich (Landkreis Eichstätt vs. Bayern)", use_container_width=True)
-    else:
-        benchmark_df = pd.DataFrame([
-            {"Versorgungsindikator": "Öffentliche Apotheken (je 100k Einw.)", "Landkreis Eichstätt": 15.4, "Bayern-Durchschnitt": 20.2},
-            {"Versorgungsindikator": "Ambulante Ärzt/innen & Psych. (je 100k Einw.)", "Landkreis Eichstätt": 157.4, "Bayern-Durchschnitt": 198.4},
-            {"Versorgungsindikator": "Zahnärztliche Personen (je 100k Einw.)", "Landkreis Eichstätt": 18.4, "Bayern-Durchschnitt": 87.2}
-        ])
-
-        fig_bench = px.bar(
-            benchmark_df,
-            x="Versorgungsindikator",
-            y=["Landkreis Eichstätt", "Bayern-Durchschnitt"],
-            barmode="group",
-            title="Versorgungsdichte je 100.000 Einwohner im Vergleich zum Landesdurchschnitt Bayern",
-            color_discrete_map={"Landkreis Eichstätt": "#2563EB", "Bayern-Durchschnitt": "#94A3B8"},
-            height=380
-        )
-        fig_bench.update_traces(texttemplate='%{y}', textposition='outside')
-        fig_bench.update_layout(plot_bgcolor='white', paper_bgcolor='white', yaxis=dict(gridcolor='#E2E8F0'), legend_title_text="")
-        st.plotly_chart(fig_bench, use_container_width=True)
-
-    # Methodological Sources Caption
-    st.caption("""
-    📌 **Quellen und Stichtagsnachweis der Referenzdaten:**
-    * **Einwohnerzahl Stichtag:** 31.12.2025 (Bayerisches Landesamt für Statistik).
-    * **Öffentliche Apotheken:** Bayerische Landesapothekerkammer (BLAK, Stand 2024/2025: 2.744 Apotheken in Bayern = 20,2 je 100k Einw.).
-    * **Ambulante Ärztliche Versorgung:** Kassenärztliche Vereinigung Bayerns (KVB Versorgungsatlas, Stand 2024/2025: ca. 198,4 je 100k Einw.).
-    * **Zahnärztliche Versorgung:** Bayerische Landeszahnärztekammer (BLZK, Stand 2024/2025: ca. 87,2 aktiv behandelnde Zahnärzt/innen je 100k Einw.). *Hinweis: Die Abweichung bei den Zahnärzten im Landkreis resultiert aus dem im Recherchemanual beschriebenen Opt-In-Verfahren der Kammerregister.*
-    """)
 
 with tab2:
     st.header("Gemeindespezifische Detail-Steckbriefe")
